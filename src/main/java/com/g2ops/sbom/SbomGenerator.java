@@ -8,11 +8,11 @@ import java.nio.file.Files;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+
 public class SbomGenerator {
-	
 
 	public static void main(String[] args) {
-		// Select nessus files.
+//		 Select nessus files.
 		JFileChooser fileChooser = new JFileChooser();
 		fileChooser.setFileFilter(new FileNameExtensionFilter("Nessus Files", "nessus"));
 		fileChooser.setMultiSelectionEnabled(true);
@@ -27,9 +27,11 @@ public class SbomGenerator {
 		File[] nessusFiles = fileChooser.getSelectedFiles();
 
 		for (File nessusFile : nessusFiles) {
-			try {
-				InputStream inputStream = Files.newInputStream(nessusFile.toPath());
-				NessusParser.parseXML(inputStream);
+
+			System.out.println("Processing File Name: " + nessusFile.getName());
+
+			try (InputStream inputStream = Files.newInputStream(nessusFile.toPath())) {
+				NessusParser.parseXML(inputStream, nessusFile);
 
 			} catch (IOException e) {
 				e.printStackTrace();
