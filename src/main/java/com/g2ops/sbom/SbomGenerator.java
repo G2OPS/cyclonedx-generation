@@ -8,8 +8,13 @@ import java.nio.file.Files;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 
 public class SbomGenerator {
+	
+	private static final Logger LOGGER = LogManager.getLogger();
 
 	public static void main(String[] args) {
 //		 Select nessus files.
@@ -28,7 +33,7 @@ public class SbomGenerator {
 
 		for (File nessusFile : nessusFiles) {
 
-			System.out.println("Processing File Name: " + nessusFile.getName());
+			LOGGER.info("Processing File Name: " + nessusFile.getName());
 
 			try (InputStream inputStream = Files.newInputStream(nessusFile.toPath())) {
 				NessusParser.parseXML(inputStream, nessusFile);

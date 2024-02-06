@@ -6,12 +6,16 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.JOptionPane;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -21,7 +25,10 @@ import org.xml.sax.SAXException;
 
 public class NessusParser {
 
-	private static final String PLUGIN_NAME = "Common Platform Enumeration (CPE)";
+	private static final Logger LOGGER = LogManager.getLogger();
+
+	private static final String CPE_PLUGIN = "Common Platform Enumeration (CPE)";
+	private static final List<String> CPE_IDs = new ArrayList<>();
 
 	/**
 	 * Reads nessus files and iterates through relevent data fields.
@@ -43,6 +50,7 @@ public class NessusParser {
 
 			boolean foundCpePlugin = false;
 
+			// Path to the nessus file(s).
 			String desktopPath = System.getProperty("user.home") + "/OneDrive - G2 Ops, Inc/Desktop/";
 			String logFilePath = desktopPath + "output_log.txt";
 
@@ -54,16 +62,30 @@ public class NessusParser {
 						Element reportItemElement = (Element) reportItemNode;
 
 						// Check if plugin name equals Common Platform Enumeration.
-						String pluginNameAttr = reportItemElement.getAttribute("pluginName");
-						if (PLUGIN_NAME.equalsIgnoreCase(pluginNameAttr)) {
+						String pluginFamily = reportItemElement.getAttribute("pluginName");
+						if (CPE_PLUGIN.equalsIgnoreCase(pluginFamily)) {
 							foundCpePlugin = true;
 
-							// Write to the output file.
-							writer.println("File: " + nessusFile.getName() + ", Content: " + reportItemElement.getTextContent());
+							Node pluginOutputNode = reportItemElement.getElementsByTagName("plugin_output").item(0);
+
+							if (pluginOutputNode != null && pluginOutputNode.getNodeType() == Node.ELEMENT_NODE) {
+								Element pluginOutputElement = (Element) pluginOutputNode;
+
+								String pluginOutputContent = pluginOutputElement.getTextContent();
+								extractCPE(pluginOutputContent);
+							}
+							// TODO
+							// Store CPE values for each cpe component.
+							// write stored values to the output file.
+
 						}
 
 					}
 
+				}
+				// Write to the output file.
+				for (String cpeId : CPE_IDs) {
+					writer.println(cpeId);
 				}
 
 				if (!foundCpePlugin) {
@@ -80,6 +102,54 @@ public class NessusParser {
 			e.printStackTrace();
 		}
 
+	}
+
+	/**
+	 * Extracts CPE ID from plugin output tag.
+	 * 
+	 * @param pluginOutputElemet
+	 * @return
+	 */
+
+	private static List<String> extractCPE(String pluginOutputContent) {
+
+		int startIndex = pluginOutputContent.indexOf("cpe:");
+
+		while (startIndex != -1) {
+			// Find the endIndex once the cpe substring is found.
+			int spaceIndex = pluginOutputContent.indexOf(" ", startIndex);
+			int newLineIndex = pluginOutputContent.indexOf("\n", startIndex);
+
+			int endIndex;
+
+			if (spaceIndex != -1 && newLineIndex != -1) {
+				// If both spaceIndex & newLineIndex are found, choose the one that comes first.
+				endIndex = Math.min(spaceIndex, newLineIndex);
+			} else {
+				// Use the one that is found.
+				endIndex = Math.max(spaceIndex, newLineIndex);
+			}
+
+			if (endIndex == -1) {
+				// If no whitespace or newline is found, then endIndex will end of content.
+				endIndex = pluginOutputContent.length();
+			}
+
+			String cpeId = pluginOutputContent.substring(startIndex, endIndex).trim();
+
+			// Check for duplicates before adding.
+			if (!CPE_IDs.contains(cpeId)) {
+				CPE_IDs.add(cpeId);
+			}
+
+			// Find the next occurrence of "cpe:" in the remaining content
+			startIndex = pluginOutputContent.indexOf("cpe:", endIndex);
+		}
+
+		if (CPE_IDs.isEmpty()) {
+			LOGGER.info("No cpe found in <plugin_output>");
+		}
+		return CPE_IDs;
 	}
 
 }
