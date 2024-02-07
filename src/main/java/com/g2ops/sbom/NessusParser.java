@@ -75,6 +75,7 @@ public class NessusParser {
 								extractCPE(pluginOutputContent);
 							}
 							// TODO
+							// Condition CPE ID for proper standard. 
 							// Store CPE values for each cpe component.
 							// write stored values to the output file.
 
@@ -108,7 +109,7 @@ public class NessusParser {
 	 * Extracts CPE ID from plugin output tag.
 	 * 
 	 * @param pluginOutputElemet
-	 * @return
+	 * @return CPE list.
 	 */
 
 	private static List<String> extractCPE(String pluginOutputContent) {
@@ -136,10 +137,11 @@ public class NessusParser {
 			}
 
 			String cpeId = pluginOutputContent.substring(startIndex, endIndex).trim();
-
+			String formatCpe = cpeId.replace("/", "2.3:");
+			
 			// Check for duplicates before adding.
-			if (!CPE_IDs.contains(cpeId)) {
-				CPE_IDs.add(cpeId);
+			if (!CPE_IDs.contains(formatCpe)) {
+				CPE_IDs.add(formatCpe);
 			}
 
 			// Find the next occurrence of "cpe:" in the remaining content
@@ -151,5 +153,5 @@ public class NessusParser {
 		}
 		return CPE_IDs;
 	}
-
+	
 }
