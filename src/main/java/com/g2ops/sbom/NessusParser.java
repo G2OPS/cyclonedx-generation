@@ -75,8 +75,6 @@ public class NessusParser {
 								extractCPE(pluginOutputContent);
 							}
 							// TODO
-							// Condition CPE ID for proper standard. 
-							// Store CPE values for each cpe component.
 							// write stored values to the output file.
 
 						}
@@ -86,6 +84,7 @@ public class NessusParser {
 				}
 				// Write to the output file.
 				for (String cpeId : CPE_IDs) {
+					createCpeRecord(cpeId);
 					writer.println(cpeId);
 				}
 
@@ -137,11 +136,10 @@ public class NessusParser {
 			}
 
 			String cpeId = pluginOutputContent.substring(startIndex, endIndex).trim();
-			String formatCpe = cpeId.replace("/", "2.3:");
 			
 			// Check for duplicates before adding.
-			if (!CPE_IDs.contains(formatCpe)) {
-				CPE_IDs.add(formatCpe);
+			if (!CPE_IDs.contains(cpeId)) {
+				CPE_IDs.add(cpeId);
 			}
 
 			// Find the next occurrence of "cpe:" in the remaining content
@@ -154,4 +152,28 @@ public class NessusParser {
 		return CPE_IDs;
 	}
 	
+	/**
+	 * Creates Cpe Record, spilts CPE ID and sets indiviual component fields.
+	 * 
+	 * @param CPE ID. 
+	 * @return Cpe Record.
+	 */
+	
+	private static CpeRecord createCpeRecord(String cpeId) {
+		CpeRecord cpeRecord = null;
+		// Format Cpe Id and spilt by the colon.
+		String formatCpe = cpeId.replace("/", "2.3:");
+		String[] cpeComponents = formatCpe.split(":");
+
+		cpeRecord = new CpeRecord();
+		cpeRecord.setCpeId(cpeId);
+		cpeRecord.setPart(cpeComponents[2]);
+		cpeRecord.setVendor(cpeComponents[3]);
+		cpeRecord.setProduct(cpeComponents[4]);
+		cpeRecord.setVersion(cpeComponents[5]);
+		cpeRecord.setUpdate(cpeComponents[6]);
+		
+		return cpeRecord;
+
+	}
 }

@@ -2,6 +2,7 @@ package com.g2ops.sbom;
 
 public class CpeRecord {
 	
+	private String cpeId;
 	private String part;
 	private String vendor;
 	private String product;
@@ -9,6 +10,13 @@ public class CpeRecord {
 	private String update;
 	
 	// Setters & getters for Cpe Id components. 
+	public void setCpeId(String cpeId) {
+		this.cpeId = cpeId;
+	}
+	
+	public String getCpeId() {
+		return cpeId;
+	}
 	public void setPart(String part) {
 		this.part = part;
 	}
