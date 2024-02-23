@@ -7,7 +7,6 @@ public class CpeRecord {
 	private String vendor;
 	private String product;
 	private String version;
-	private String update;
 	
 	// Setters & getters for Cpe Id components. 
 	public void setCpeId(String cpeId) {
@@ -48,14 +47,5 @@ public class CpeRecord {
 	public void setVersion(String version) {
 		this.version = version;
 	}
-
-	public String getUpdate() {
-		return update;
-	}
-
-	public void setUpdate(String update) {
-		this.update = update;
-	}
-	
 	
 }

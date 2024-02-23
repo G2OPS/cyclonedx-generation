@@ -1,22 +1,18 @@
 package com.g2ops.sbom;
 
-import java.awt.HeadlessException;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 import javax.swing.JOptionPane;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.w3c.dom.DOMException;
+import org.cyclonedx.model.Component.Type;
+import org.cyclonedx.model.component.modelCard.ComponentData.ComponentDataType;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -25,10 +21,11 @@ import org.xml.sax.SAXException;
 
 public class NessusParser {
 
-	private static final Logger LOGGER = LogManager.getLogger();
+	private static final Logger LOGGER = Logger.getLogger(NessusParser.class.getName());
 
 	private static final String CPE_PLUGIN = "Common Platform Enumeration (CPE)";
 	private static final List<String> CPE_IDs = new ArrayList<>();
+	private static final List<CpeRecord> CPE_RECORDS = new ArrayList<>();
 
 	/**
 	 * Reads nessus files and iterates through relevent data fields.
@@ -47,57 +44,45 @@ public class NessusParser {
 
 			// Get all elements by tag name.
 			NodeList reportItemList = document.getElementsByTagName("ReportItem");
-
+			// Flag to check if cpePlugin exits in the scan.
 			boolean foundCpePlugin = false;
 
-			// Path to the nessus file(s).
-			String desktopPath = System.getProperty("user.home") + "/OneDrive - G2 Ops, Inc/Desktop/";
-			String logFilePath = desktopPath + "output_log.txt";
+			for (int i = 0; i < reportItemList.getLength(); i++) {
+				Node reportItemNode = reportItemList.item(i);
 
-			try (PrintWriter writer = new PrintWriter(new FileWriter(logFilePath, true))) {
-				for (int i = 0; i < reportItemList.getLength(); i++) {
-					Node reportItemNode = reportItemList.item(i);
+				if (reportItemNode.getNodeType() == Node.ELEMENT_NODE) {
+					Element reportItemElement = (Element) reportItemNode;
 
-					if (reportItemNode.getNodeType() == Node.ELEMENT_NODE) {
-						Element reportItemElement = (Element) reportItemNode;
+					// Check if plugin name equals Common Platform Enumeration.
+					String pluginFamily = reportItemElement.getAttribute("pluginName");
+					if (CPE_PLUGIN.equalsIgnoreCase(pluginFamily)) {
+						foundCpePlugin = true;
 
-						// Check if plugin name equals Common Platform Enumeration.
-						String pluginFamily = reportItemElement.getAttribute("pluginName");
-						if (CPE_PLUGIN.equalsIgnoreCase(pluginFamily)) {
-							foundCpePlugin = true;
+						Node pluginOutputNode = reportItemElement.getElementsByTagName("plugin_output").item(0);
 
-							Node pluginOutputNode = reportItemElement.getElementsByTagName("plugin_output").item(0);
+						if (pluginOutputNode != null && pluginOutputNode.getNodeType() == Node.ELEMENT_NODE) {
+							Element pluginOutputElement = (Element) pluginOutputNode;
 
-							if (pluginOutputNode != null && pluginOutputNode.getNodeType() == Node.ELEMENT_NODE) {
-								Element pluginOutputElement = (Element) pluginOutputNode;
-
-								String pluginOutputContent = pluginOutputElement.getTextContent();
-								extractCPE(pluginOutputContent);
-							}
-							// TODO
-							// write stored values to the output file.
-
+							String pluginOutputContent = pluginOutputElement.getTextContent();
+							extractCPE(pluginOutputContent);
 						}
 
 					}
 
 				}
-				// Write to the output file.
-				for (String cpeId : CPE_IDs) {
-					createCpeRecord(cpeId);
-					writer.println(cpeId);
-				}
 
-				if (!foundCpePlugin) {
-					writer.println("File: " + nessusFile.getName() + ", No CPE plugin found");
-					JOptionPane.showMessageDialog(null, "The selected Nessus scan did not the have the CPE plugin enabled.", "Error",
-							JOptionPane.ERROR_MESSAGE);
-				}
-			} catch (HeadlessException | DOMException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 			}
+			// Iterate over data list and create records.
+			for (String cpeId : CPE_IDs) {
+				createCpeRecord(cpeId);
+			}
+			// Build SBOMs. 
+			SbomBuilder.generateSbom();
 
+			if (!foundCpePlugin) {
+				JOptionPane.showMessageDialog(null, "The selected Nessus scan did not the have the CPE plugin enabled.", "Info", JOptionPane.ERROR_MESSAGE);
+			}
+			
 		} catch (ParserConfigurationException | SAXException | IOException e) {
 			e.printStackTrace();
 		}
@@ -159,21 +144,28 @@ public class NessusParser {
 	 * @return Cpe Record.
 	 */
 	
-	private static CpeRecord createCpeRecord(String cpeId) {
-		CpeRecord cpeRecord = null;
+	private static void createCpeRecord(String cpeId) {
 		// Format Cpe Id and spilt by the colon.
 		String formatCpe = cpeId.replace("/", "2.3:");
 		String[] cpeComponents = formatCpe.split(":");
-
-		cpeRecord = new CpeRecord();
-		cpeRecord.setCpeId(cpeId);
+		
+		CpeRecord cpeRecord = new CpeRecord();
+		cpeRecord.setCpeId(formatCpe);
 		cpeRecord.setPart(cpeComponents[2]);
 		cpeRecord.setVendor(cpeComponents[3]);
 		cpeRecord.setProduct(cpeComponents[4]);
-		cpeRecord.setVersion(cpeComponents[5]);
-		cpeRecord.setUpdate(cpeComponents[6]);
+
+		// Check if version exists before accessing the index.
+		if (cpeComponents.length > 5) {
+			cpeRecord.setVersion(cpeComponents[5]);
+		}
 		
-		return cpeRecord;
+		CPE_RECORDS.add(cpeRecord);
 
 	}
+
+	public static List<CpeRecord> getCpeRecord() {
+		return CPE_RECORDS;
+	}
+	
 }

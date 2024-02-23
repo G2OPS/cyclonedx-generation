@@ -8,16 +8,16 @@ import java.nio.file.Files;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import java.util.logging.Logger;
 
 
-public class SbomGenerator {
+public class SbomGui {
 	
-	private static final Logger LOGGER = LogManager.getLogger();
+	private static final Logger LOGGER = Logger.getLogger(SbomGui.class.getName());
 
 	public static void main(String[] args) {
-//		 Select nessus files.
+		
+//		Select nessus files.
 		JFileChooser fileChooser = new JFileChooser();
 		fileChooser.setFileFilter(new FileNameExtensionFilter("Nessus Files", "nessus"));
 		fileChooser.setMultiSelectionEnabled(true);
@@ -32,7 +32,7 @@ public class SbomGenerator {
 		File[] nessusFiles = fileChooser.getSelectedFiles();
 
 		for (File nessusFile : nessusFiles) {
-
+			
 			LOGGER.info("Processing File Name: " + nessusFile.getName());
 
 			try (InputStream inputStream = Files.newInputStream(nessusFile.toPath())) {
