@@ -1,12 +1,13 @@
 package com.g2ops.sbom;
 
-public class CpeRecord {
+public class ComponentsRecord {
 	
 	private String cpeId;
 	private String part;
 	private String vendor;
 	private String product;
 	private String version;
+	private String description;
 	
 	// Setters & getters for Cpe Id components. 
 	public void setCpeId(String cpeId) {
@@ -48,4 +49,11 @@ public class CpeRecord {
 		this.version = version;
 	}
 	
+	public String getDescription() {
+		return description;
+	}
+	
+	public void setDescription(String description) {
+		this.description = description;
+	}
 }

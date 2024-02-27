@@ -11,8 +11,6 @@ import javax.swing.JOptionPane;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import org.cyclonedx.model.Component.Type;
-import org.cyclonedx.model.component.modelCard.ComponentData.ComponentDataType;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -25,7 +23,7 @@ public class NessusParser {
 
 	private static final String CPE_PLUGIN = "Common Platform Enumeration (CPE)";
 	private static final List<String> CPE_IDs = new ArrayList<>();
-	private static final List<CpeRecord> CPE_RECORDS = new ArrayList<>();
+	private static final List<ComponentsRecord> COMPONENTS_RECORD = new ArrayList<>();
 
 	/**
 	 * Reads nessus files and iterates through relevent data fields.
@@ -54,10 +52,10 @@ public class NessusParser {
 					Element reportItemElement = (Element) reportItemNode;
 
 					// Check if plugin name equals Common Platform Enumeration.
-					String pluginFamily = reportItemElement.getAttribute("pluginName");
-					if (CPE_PLUGIN.equalsIgnoreCase(pluginFamily)) {
+					String pluginName = reportItemElement.getAttribute("pluginName");
+					if (CPE_PLUGIN.equalsIgnoreCase(pluginName)) {
 						foundCpePlugin = true;
-
+						// Extract plugin_output tag.
 						Node pluginOutputNode = reportItemElement.getElementsByTagName("plugin_output").item(0);
 
 						if (pluginOutputNode != null && pluginOutputNode.getNodeType() == Node.ELEMENT_NODE) {
@@ -66,6 +64,7 @@ public class NessusParser {
 							String pluginOutputContent = pluginOutputElement.getTextContent();
 							extractCPE(pluginOutputContent);
 						}
+						// TODO Extract description tag.
 
 					}
 
@@ -74,15 +73,15 @@ public class NessusParser {
 			}
 			// Iterate over data list and create records.
 			for (String cpeId : CPE_IDs) {
-				createCpeRecord(cpeId);
+				createComponentRecord(cpeId);
 			}
-			// Build SBOMs. 
+			// Build SBOMs.
 			SbomBuilder.generateSbom();
 
 			if (!foundCpePlugin) {
 				JOptionPane.showMessageDialog(null, "The selected Nessus scan did not the have the CPE plugin enabled.", "Info", JOptionPane.ERROR_MESSAGE);
 			}
-			
+
 		} catch (ParserConfigurationException | SAXException | IOException e) {
 			e.printStackTrace();
 		}
@@ -144,28 +143,28 @@ public class NessusParser {
 	 * @return Cpe Record.
 	 */
 	
-	private static void createCpeRecord(String cpeId) {
+	private static void createComponentRecord(String cpeId) {
 		// Format Cpe Id and spilt by the colon.
 		String formatCpe = cpeId.replace("/", "2.3:");
 		String[] cpeComponents = formatCpe.split(":");
 		
-		CpeRecord cpeRecord = new CpeRecord();
-		cpeRecord.setCpeId(formatCpe);
-		cpeRecord.setPart(cpeComponents[2]);
-		cpeRecord.setVendor(cpeComponents[3]);
-		cpeRecord.setProduct(cpeComponents[4]);
+		ComponentsRecord componentRecord = new ComponentsRecord();
+		componentRecord.setCpeId(formatCpe);
+		componentRecord.setPart(cpeComponents[2]);
+		componentRecord.setVendor(cpeComponents[3]);
+		componentRecord.setProduct(cpeComponents[4]);
 
 		// Check if version exists before accessing the index.
 		if (cpeComponents.length > 5) {
-			cpeRecord.setVersion(cpeComponents[5]);
+			componentRecord.setVersion(cpeComponents[5]);
 		}
 		
-		CPE_RECORDS.add(cpeRecord);
+		COMPONENTS_RECORD.add(componentRecord);
 
 	}
 
-	public static List<CpeRecord> getCpeRecord() {
-		return CPE_RECORDS;
+	public static List<ComponentsRecord> getComponentsRecord() {
+		return COMPONENTS_RECORD;
 	}
 	
 }
