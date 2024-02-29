@@ -26,6 +26,7 @@ public class SbomBuilder {
 
 		Bom bom = new Bom();
 		List<ComponentsRecord> componentsRecords = NessusParser.getComponentsRecord();
+		List<VulnerabilitiesRecord> vulnerabilitiesRecords = NessusParser.getVulnerabiltiesRecord();
 
 		if (componentsRecords != null) {
 
@@ -41,7 +42,8 @@ public class SbomBuilder {
 				swComponent.setBomRef(componentRecord.getProduct() + "-" + swComponent.getHashes().get(0).getValue());
 
 				bom.addComponent(swComponent);
-				
+				//TODO
+				bom.setVulnerabilities(null);
 				bom.setMetadata(createMetadata());
 				bom.setSerialNumber("urn:uuid:"+ UUID.randomUUID());
 			}
