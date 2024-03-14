@@ -10,7 +10,7 @@
 
   <name>cyclonedx-generation</name>
   <!-- FIXME change it to the project's website -->
-  <url>http://www.example.com</url>
+  <url>https://github.com/G2OPS/cyclonedx-generation</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -19,30 +19,40 @@
   </properties>
 
   <dependencies>
-	  
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.11</version>
-      <scope>test</scope>
-    </dependency>
-    <!-- https://mvnrepository.com/artifact/org.spdx/java-spdx-library -->
+	<!-- https://mvnrepository.com/artifact/junit/junit -->
 	<dependency>
-	    <groupId>org.spdx</groupId>
-	    <artifactId>java-spdx-library</artifactId>
-	    <version>1.1.10</version>
-	</dependency>
-	<!-- https://mvnrepository.com/artifact/org.spdx/spdx-tools -->
-	<dependency>
-	    <groupId>org.spdx</groupId>
-	    <artifactId>spdx-tools</artifactId>
-	    <version>2.2.8</version>
-	</dependency>
+		<groupId>junit</groupId>
+		<artifactId>junit</artifactId>
+		<version>4.11</version>
+		<scope>test</scope>
+	</dependency>  
 	<!-- https://mvnrepository.com/artifact/org.cyclonedx/cyclonedx-core-java -->
 	<dependency>
 	    <groupId>org.cyclonedx</groupId>
 	    <artifactId>cyclonedx-core-java</artifactId>
 	    <version>8.0.3</version>
+	</dependency>
+	<!-- https://mvnrepository.com/artifact/com.github.package-url/packageurl-java -->
+	<dependency>
+	    <groupId>com.github.package-url</groupId>
+	    <artifactId>packageurl-java</artifactId>
+	    <version>1.5.0</version>
+	</dependency>
+	<dependency>
+	    <groupId>org.jsoup</groupId>
+	    <artifactId>jsoup</artifactId>
+	    <version>1.14.3</version>
+	</dependency>
+	<dependency>
+	  <groupId>gov.nist.secauto.swid</groupId>
+	  <artifactId>swid-builder</artifactId>
+	  <version>0.6.1</version>
+	</dependency>
+	<!-- https://mvnrepository.com/artifact/org.apache.maven/maven-model -->
+	<dependency>
+	    <groupId>org.apache.maven</groupId>
+	    <artifactId>maven-model</artifactId>
+	    <version>3.0.2</version>
 	</dependency>
 
   </dependencies>

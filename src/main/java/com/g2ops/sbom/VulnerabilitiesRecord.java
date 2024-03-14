@@ -1,19 +1,23 @@
 package com.g2ops.sbom;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 public class VulnerabilitiesRecord {
 	
 	private String cveID;
-	private String cweID;
+	private List<Integer> cweID = new ArrayList<>();
 	private String[] osvdbID;
 	private String cvssVector;
-	private String cvssBaseScore;
+	private Double cvssBaseScore;
 	private String cvssTempScore;
 	private String cvssTempVector;
 	private String recommendation;
-	private String publishedDate;
+	private Date publishedDate;
 	private String description;
+	private String riskFactor;
+	private String exploitAvailable;
 	
 	// Getters & setters. 
 	public String getCveID() {
@@ -22,23 +26,23 @@ public class VulnerabilitiesRecord {
 	public void setCveID(String cveID) {
 		this.cveID = cveID;
 	}
-	public String getCweID() {
+	public List<Integer> getCweID() {
 		return cweID;
 	}
-	public void setCweID(String cweID) {
+	public void setCweID(List<Integer> cweID) {
 		this.cweID = cweID;
 	}
-	public String getCvssBaseScore() {
+	public Double getCvssBaseScore() {
 		return cvssBaseScore;
 	}
-	public void setCvssBaseScore(String string) {
-		this.cvssBaseScore = string;
+	public void setCvssBaseScore(Double cvssBaseScore) {
+		this.cvssBaseScore = cvssBaseScore;
 	}
 	public String getCvssTemporalScore() {
 		return cvssTempScore;
 	}
-	public void setCvssTemporalScore(String cvssTemporalScore) {
-		this.cvssTempScore = cvssTemporalScore;
+	public void setCvssTemporalScore(String cvssTempScore) {
+		this.cvssTempScore = cvssTempScore;
 	}
 	public String[] getOsvdbID() {
 		return osvdbID;
@@ -64,10 +68,10 @@ public class VulnerabilitiesRecord {
 	public void setRecommendation(String recommendation) {
 		this.recommendation = recommendation;
 	}
-	public String getPublishedDate() {
+	public  Date getPublishedDate() {
 		return publishedDate;
 	}
-	public void setPublishedDate(String publishedDate) {
+	public void setPublishedDate (Date publishedDate) {
 		this.publishedDate = publishedDate;
 	}
 	public String getDescription() {
@@ -75,6 +79,18 @@ public class VulnerabilitiesRecord {
 	}
 	public void setDescription(String description) {
 		this.description = description;
+	}
+	public String getRiskFactor() {
+		return riskFactor;
+	}
+	public void setRiskFactor(String riskFactor) {
+		this.riskFactor = riskFactor;
+	}
+	public String getExploitAvailable() {
+		return exploitAvailable;
+	}
+	public void setExploitAvailable(String exploitAvailable) {
+		this.exploitAvailable = exploitAvailable;
 	}
 
 }

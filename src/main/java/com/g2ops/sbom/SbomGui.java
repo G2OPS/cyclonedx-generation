@@ -17,8 +17,11 @@ public class SbomGui {
 
 	public static void main(String[] args) {
 		
-//		Select nessus files.
+//		Set default directory path & select Nessus file(s).
 		JFileChooser fileChooser = new JFileChooser();
+		String userDesktopPath = System.getProperty("user.home") + File.separator + "OneDrive - G2 Ops, Inc/Desktop";
+		fileChooser.setCurrentDirectory(new File(userDesktopPath));
+		
 		fileChooser.setFileFilter(new FileNameExtensionFilter("Nessus Files", "nessus"));
 		fileChooser.setMultiSelectionEnabled(true);
 		int numFiles = fileChooser.showOpenDialog(null);
