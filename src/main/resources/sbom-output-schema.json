@@ -334,7 +334,22 @@
                                 "vector":
                                 {
                                     "type": "string",
-                                    "description": "The textual representation of the base score."
+                                    "description": "Textual representation of metric values used to score the vulnerability."
+                                },
+                                "severity":
+                                {
+                                    "type": "string",
+                                    "description": "Textual representation of the severity that corresponds to the numerical score of the rating",
+                                    "enum": 
+                                    [
+                                        "critical",
+                                        "high",
+                                        "medium",
+                                        "low",
+                                        "info",
+                                        "none",
+                                        "unknown",
+                                    ]
                                 }
                             }
                         }
