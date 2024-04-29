@@ -1,0 +1,379 @@
+{
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.5",
+    "serialNumber": "urn:uuid:e9f3144f-7796-4b42-a98a-c13cb0e5ef8b",
+    "version": 1,
+    "metadata":
+    {
+        "timestamp": "2024-04-18T23:05:53Z",
+        "lifecycles":
+        [
+            {
+                "phase": "post-build"
+            }
+        ],
+        "authors":
+        [
+            {
+                "name": "G2 Ops Inc",
+                "email": "info@g2-ops.com",
+                "phone": "757-965-8330"
+            }
+        ],
+        "properties":
+        [
+            {
+                "name": "cdx:FileName",
+                "value": "FullSiteScan.nessus"
+            }
+        ]
+    },
+    "components":
+    [
+        {
+            "name": "10.107.4.1",
+            "hashes":
+            [
+                {
+                    "alg": "MD5",
+                    "content": "5e94155ac9da60f676837f52508bc2f8"
+                },
+                {
+                    "alg": "SHA-1",
+                    "content": "0af77974ace632d2b009de16b6b87c8db8997c4c"
+                },
+                {
+                    "alg": "SHA-256",
+                    "content": "a0205d5d64541109b4cf4bb6c35db650d14de50913a67fe0d21d85dabfde9879"
+                }
+            ],
+            "cpe": "cpe:2.3:o:cisco:ios_xe",
+            "properties":
+            [
+                {
+                    "name": "cdx:device:systemType",
+                    "value": "router"
+                },
+                {
+                    "name": "cdx:device:operatingSystem",
+                    "value": "Cisco IOS XE Cisco IOS Software, IOS-XE Software, Catalyst L3 Switch Software (CAT3K_CAA-UNIVERSALK9-M), Version 03.07.04E RELEASE SOFTWARE (fc1)"
+                },
+                {
+                    "name": "cdx:device:macAddress",
+                    "value": "00:af:1f:87:65:81, 00:af:1f:87:65:86, 00:af:1f:87:65:cc, 00:af:1f:87:65:82, 00:af:1f:87:65:e2, 00:af:1f:87:65:ed, 00:af:1f:87:65:89, 00:af:1f:87:65:87, 00:af:1f:87:65:8e, 00:af:1f:87:65:d6, 00:af:1f:87:65:88, 00:af:1f:87:65:f6, 00:af:1f:87:65:f1, 00:af:1f:87:65:c7, 00:af:1f:87:65:fa, 00:af:1f:87:65:ca, 00:af:1f:87:65:e5, 00:af:1f:87:65:c9, 00:af:1f:87:65:f0, 00:af:1f:87:65:d9, 00:af:1f:87:65:8a, 00:af:1f:87:65:f5, 00:af:1f:87:65:94, 00:af:1f:87:65:e9, 00:af:1f:87:65:f9, 00:af:1f:87:65:91, 00:af:1f:87:65:80, 00:af:1f:87:65:dd, 00:af:1f:87:65:da, 00:af:1f:87:65:8c, 00:af:1f:87:65:c8, 00:af:1f:87:65:ec, 00:af:1f:87:65:90, 00:af:1f:87:65:8b, 00:af:1f:87:65:93, 00:af:1f:87:65:c1, 00:af:1f:87:65:d0, 00:af:1f:87:65:85, 00:af:1f:87:65:fd, 00:af:1f:87:65:8d, 00:af:1f:87:65:c4, 00:af:1f:87:65:92, 00:af:1f:87:65:83, 00:af:1f:87:65:84, 00:af:1f:87:65:d2, 00:af:1f:87:65:e1, 00:af:1f:87:65:e8, 00:af:1f:87:65:8f, 00:af:1f:87:65:d1"
+                }
+            ],
+            "type": "device",
+            "bom-ref": "10.107.4.1.42891000"
+        },
+        {
+            "name": "10.107.0.2",
+            "hashes":
+            [
+                {
+                    "alg": "MD5",
+                    "content": "5e94155ac9da60f676837f52508bc2f8"
+                },
+                {
+                    "alg": "SHA-1",
+                    "content": "0af77974ace632d2b009de16b6b87c8db8997c4c"
+                },
+                {
+                    "alg": "SHA-256",
+                    "content": "a0205d5d64541109b4cf4bb6c35db650d14de50913a67fe0d21d85dabfde9879"
+                }
+            ],
+            "cpe": "cpe:2.3:o:cisco:ios_xe",
+            "properties":
+            [
+                {
+                    "name": "cdx:device:systemType",
+                    "value": "router"
+                },
+                {
+                    "name": "cdx:device:operatingSystem",
+                    "value": "Cisco IOS XE Cisco IOS Software, IOS-XE Software, Catalyst L3 Switch Software (CAT3K_CAA-UNIVERSALK9-M), Version 03.07.04E RELEASE SOFTWARE (fc1)"
+                },
+                {
+                    "name": "cdx:device:macAddress",
+                    "value": "00:af:1f:87:65:81, 00:af:1f:87:65:86, 00:af:1f:87:65:cc, 00:af:1f:87:65:82, 00:af:1f:87:65:e2, 00:af:1f:87:65:ed, 00:af:1f:87:65:89, 00:af:1f:87:65:87, 00:af:1f:87:65:8e, 00:af:1f:87:65:d6, 00:af:1f:87:65:88, 00:af:1f:87:65:f6, 00:af:1f:87:65:f1, 00:af:1f:87:65:c7, 00:af:1f:87:65:fa, 00:af:1f:87:65:ca, 00:af:1f:87:65:e5, 00:af:1f:87:65:c9, 00:af:1f:87:65:f0, 00:af:1f:87:65:d9, 00:af:1f:87:65:8a, 00:af:1f:87:65:f5, 00:af:1f:87:65:94, 00:af:1f:87:65:e9, 00:af:1f:87:65:f9, 00:af:1f:87:65:91, 00:af:1f:87:65:80, 00:af:1f:87:65:dd, 00:af:1f:87:65:da, 00:af:1f:87:65:8c, 00:af:1f:87:65:c8, 00:af:1f:87:65:ec, 00:af:1f:87:65:90, 00:af:1f:87:65:8b, 00:af:1f:87:65:93, 00:af:1f:87:65:c1, 00:af:1f:87:65:d0, 00:af:1f:87:65:85, 00:af:1f:87:65:fd, 00:af:1f:87:65:8d, 00:af:1f:87:65:c4, 00:af:1f:87:65:92, 00:af:1f:87:65:83, 00:af:1f:87:65:84, 00:af:1f:87:65:d2, 00:af:1f:87:65:e1, 00:af:1f:87:65:e8, 00:af:1f:87:65:8f, 00:af:1f:87:65:d1"
+                }
+            ],
+            "type": "device",
+            "bom-ref": "10.107.0.2"
+        }
+    ],
+    "dependencies":
+    [
+        {
+            "ref": "ovb3850-1b.headquarters.com",
+            "dependsOn":
+            []
+        },
+        {
+            "ref": "10.107.16.3",
+            "dependsOn":
+            []
+        },
+        {
+            "ref": "shmpc00213.corp.ad.headquarters.com",
+            "dependsOn":
+            [
+                "CCleaner 4.19",
+                "Citrix online plug-in 12.1.44.1",
+                "HEAT. Endpoint Management and Security Suite Agent 8.5.0.9",
+                "Microsoft Visual Studio 2010 Tools for Office Runtime (x64) 10.0.50903",
+                "Microsoft Office Professional Plus 2010 14.0.7015.1000",
+                "Microsoft Visio Professional 2010 14.0.7015.1000",
+                "Microsoft Visual C++ 2005 Redistributable (x64) 8.0.56336",
+                "64 Bit HP CIO Components Installer 18.2.4",
+                "Pivotal Lifecycle Engine Lifecycle Server r5.9 Client (v5.9.0601)",
+                "Network Recording Player 29.13.40.30001",
+                "Microsoft Visual C++ 2010  x64 Redistributable - 10.0.40219",
+                "Microsoft Visual C++ 2008 Redistributable - x86 9.0.30729.4148",
+                "Crystal Reports XI R2 Service Pack 6 11.5.12.1838",
+                "Microsoft .NET Framework 4.5.2 4.5.51209",
+                "Microsoft Visual C++ 2012 Redistributable (x86) - 11.0.61030 11.0.61030.0",
+                "Microsoft Visual C++ 2012 x64 Additional Runtime - 11.0.61030",
+                "headquarters Enterprise PC Scanner 1.0.0.4",
+                "Intel(R) Rapid Storage Technology 13.2.0.1016",
+                "Microsoft Visual C++ 2008 Redistributable - x64 9.0.30729.4148",
+                "Adobe Flash Player 23 ActiveX 23.0.0.207",
+                "Pivotal Lifecycle Engine Windows Access r5.9 (v5.9.0700)",
+                "Microsoft Visual C++ 2008 Redistributable - x64 9.0.30729.6161",
+                "Intel(R) Management Engine Components 9.5.15.1730",
+                "Microsoft Visual C++ 2005 Redistributable 8.0.61001",
+                "Citrix online plug-in (DV) 12.1.44.1",
+                "VMware Horizon Client 3.5.0.29526",
+                "Microsoft Lync 2010 4.0.7577.4521",
+                "Pivotal Lifecycle Engine Active Access r5.9 Client (v5.9.0507)",
+                "Symantec Enterprise Vault HTTP-only Outlook Add-In 9.0.9253",
+                "Microsoft Silverlight 5.1.50901.0",
+                "Microsoft Office Access MUI (English) 2010 14.0.7015.1000",
+                "Microsoft Office Excel MUI (English) 2010 14.0.7015.1000",
+                "Microsoft Office PowerPoint MUI (English) 2010 14.0.7015.1000",
+                "Microsoft Office Publisher MUI (English) 2010 14.0.7015.1000",
+                "Microsoft Office Outlook MUI (English) 2010 14.0.7015.1000",
+                "Microsoft Office Word MUI (English) 2010 14.0.7015.1000",
+                "Microsoft Office Proof (English) 2010 14.0.7015.1000",
+                "Microsoft Office Proof (French) 2010 14.0.7015.1000",
+                "Microsoft Office Proof (Spanish) 2010 14.0.7015.1000",
+                "Microsoft Office Office 64-bit Components 2010 14.0.7015.1000",
+                "Microsoft Office Shared 64-bit MUI (English) 2010 14.0.7015.1000",
+                "Microsoft Office Proofing (English) 2010 14.0.7015.1000",
+                "Microsoft Office InfoPath MUI (English) 2010 14.0.7015.1000",
+                "Microsoft Office Visio MUI (English) 2010 14.0.7015.1000",
+                "Microsoft Office Visio 2010 14.0.7015.1000",
+                "Microsoft Office Shared MUI (English) 2010 14.0.7015.1000",
+                "Microsoft Office OneNote MUI (English) 2010 14.0.7015.1000",
+                "Microsoft Office Groove MUI (English) 2010 14.0.7015.1000",
+                "Microsoft Office Shared Setup Metadata MUI (English) 2010 14.0.7015.1000",
+                "Microsoft Office Shared 64-bit Setup Metadata MUI (English) 2010 14.0.7015.1000",
+                "Microsoft Office Access Setup Metadata MUI (English) 2010 14.0.7015.1000",
+                "Microsoft Visual Studio 2010 Tools for Office Runtime (x64) 10.0.50908",
+                "Crystal Reports XI Release 2 11.5.8.82627",
+                "AgentInstall64 12.5.1000.01038",
+                "Microsoft Visual C++ 2008 Redistributable - x86 9.0.30729.17",
+                "Microsoft Visual C++ 2008 Redistributable - x86 9.0.30729.6161",
+                "Cisco WebEx Meeting Center 30.4.1.10006",
+                "Symantec Endpoint Protection 12.1.5337.5000",
+                "Citrix online plug-in (SSON) 12.1.44.1",
+                "wIntegrate 6.2.2",
+                "Adobe Refresh Manager 1.8.0",
+                "Adobe Acrobat XI Standard 11.0.00",
+                "Adobe Acrobat Reader DC 15.020.20042",
+                "Citrix online plug-in (HDX) 12.1.44.1",
+                "Microsoft Visual C++ 2012 x86 Additional Runtime - 11.0.61030",
+                "Intel. Trusted Connect Service Client 1.31.8.1",
+                "DIRECT! CP 8.00.005",
+                "Microsoft Visual C++ 2012 x86 Minimum Runtime - 11.0.61030",
+                "WebEx Productivity Tools 2.40.4001.10006",
+                "Citrix Online Launcher 1.0.446",
+                "Microsoft Visual C++ 2012 x64 Minimum Runtime - 11.0.61030",
+                "Citrix online plug-in (USB) 12.1.44.1",
+                "Microsoft Visual C++ 2010  x86 Redistributable - 10.0.40219",
+                "Intel(R) Processor Graphics 10.18.14.4280",
+                "Realtek High Definition Audio Driver 6.0.1.7161",
+                "Intel(R) Control Center 1.2.1.1011",
+                "Citrix online plug-in (Web) 12.1.44.1",
+                "LossRatio 1.0.0",
+                "Adobe Shockwave Player 12.0 12.0.0.112",
+                "Microsoft Visual C++ 2005 Redistributable (x64) 8.0.61000",
+                "Microsoft Visual C++ 2012 Redistributable (x64) - 11.0.61030 11.0.61030.0"
+            ]
+        }
+    ],
+    "vulnerabilities":
+    [
+        {
+            "bom-ref": "CVE-2001-0361",
+            "id": "CVE-2001-0361",
+            "source":
+            {
+                "name": "National Vulnerability Database",
+                "url": "https://nvd.nist.gov/vuln/detail/CVE-2001-0361"
+            },
+            "ratings":
+            [
+                {
+                    "score": 4.0,
+                    "method": "CVSSv2",
+                    "vector": "CVSS2#AV:N/AC:H/Au:N/C:P/I:P/A:N"
+                }
+            ],
+            "cwes":
+            [
+                310
+            ],
+            "description": "The remote SSH daemon supports connections made using the version 1.33 and/or 1.5 of the SSH protocol. These protocols are not completely cryptographically safe so they should not be used.",
+            "recommendation": "Disable compatibility with version 1 of the protocol.",
+            "published": "2001-02-06T05:00:00Z",
+            "affects":
+            [
+                {
+                    "ref": "10.107.1.3"
+                },
+                {
+                    "ref": "10.121.1.1"
+                },
+                {
+                    "ref": "10.107.4.3"
+                },
+                {
+                    "ref": "10.121.0.25"
+                },
+                {
+                    "ref": "10.121.0.26"
+                },
+                {
+                    "ref": "10.121.1.2"
+                },
+                {
+                    "ref": "10.121.0.22"
+                },
+                {
+                    "ref": "10.121.0.130"
+                },
+                {
+                    "ref": "10.121.0.131"
+                },
+                {
+                    "ref": "ovb3850-1b.headquarters.com"
+                },
+                {
+                    "ref": "10.107.16.3"
+                },
+                {
+                    "ref": "10.107.0.1"
+                },
+                {
+                    "ref": "10.121.0.129"
+                }
+            ],
+            "properties":
+            [
+                {
+                    "name": "cdx:vulnerability:cvssTemporalscore",
+                    "value": "3.5"
+                },
+                {
+                    "name": "cdx:vulnerability:cvssTemporalvector",
+                    "value": "CVSS2#E:ND/RL:OF/RC:C"
+                },
+                {
+                    "name": "cdx:vulnerability:exploitAvailable",
+                    "value": "false"
+                },
+                {
+                    "name": "cdx:vulnerability:portNumber",
+                    "value": "22"
+                }
+            ]
+        },
+        {
+            "bom-ref": "CVE-2001-0572",
+            "id": "CVE-2001-0572",
+            "source":
+            {
+                "name": "National Vulnerability Database",
+                "url": "https://nvd.nist.gov/vuln/detail/CVE-2001-0572"
+            },
+            "ratings":
+            [
+                {
+                    "score": 4.0,
+                    "method": "CVSSv2",
+                    "vector": "CVSS2#AV:N/AC:H/Au:N/C:P/I:P/A:N"
+                }
+            ],
+            "cwes":
+            [
+                310
+            ],
+            "description": "The remote SSH daemon supports connections made using the version 1.33 and/or 1.5 of the SSH protocol. These protocols are not completely cryptographically safe so they should not be used.",
+            "recommendation": "Disable compatibility with version 1 of the protocol.",
+            "published": "2001-02-06T05:00:00Z",
+            "affects":
+            [
+                {
+                    "ref": "10.107.1.3"
+                },
+                {
+                    "ref": "10.121.1.1"
+                },
+                {
+                    "ref": "10.107.4.3"
+                },
+                {
+                    "ref": "10.121.0.25"
+                },
+                {
+                    "ref": "10.121.0.26"
+                },
+                {
+                    "ref": "10.121.1.2"
+                },
+                {
+                    "ref": "10.121.0.22"
+                },
+                {
+                    "ref": "10.121.0.130"
+                },
+                {
+                    "ref": "10.121.0.131"
+                },
+                {
+                    "ref": "ovb3850-1b.headquarters.com"
+                },
+                {
+                    "ref": "10.107.16.3"
+                },
+                {
+                    "ref": "10.107.0.1"
+                },
+                {
+                    "ref": "10.121.0.129"
+                }
+            ],
+            "properties":
+            [
+                {
+                    "name": "cdx:vulnerability:cvssTemporalscore",
+                    "value": "3.5"
+                },
+                {
+                    "name": "cdx:vulnerability:cvssTemporalvector",
+                    "value": "CVSS2#E:ND/RL:OF/RC:C"
+                },
+                {
+                    "name": "cdx:vulnerability:exploitAvailable",
+                    "value": "false"
+                },
+                {
+                    "name": "cdx:vulnerability:portNumber",
+                    "value": "22"
+                }
+            ]
+        }
+    ]
+}

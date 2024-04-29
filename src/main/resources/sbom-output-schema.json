@@ -1,0 +1,464 @@
+{
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "$id": "https://github.com/G2OPS/cyclonedx-generation",
+    "title": "CycloneDX Bill of Materials Standard",
+    "type": "object",
+    "description": "The schema defining the expected SBOM output conforming to the CycloneDX specification",
+    "required":
+    [
+        "bomFormat",
+        "specVersion"
+    ],
+    "properties":
+    {
+        "bomFormat":
+        {
+            "type": "string",
+            "description": "The specification the SBOM produced conforms to.",
+            "enum":
+            [
+                "CycloneDX"
+            ]
+        },
+        "specVersion":
+        {
+            "type": "string",
+            "description": "The specification version the SBOM conforms to."
+        },
+        "serialNumber":
+        {
+            "type": "string",
+            "description": "Unique identifier for the SBOM produced.",
+            "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "version":
+        {
+            "type": "integer",
+            "description": "The version of the SBOM produced. Any modifications to the SBOM increment the version by 1",
+            "default": 1
+        },
+        "metadata":
+        {
+            "type": "object",
+            "description": "Provides high-level information for the SBOM.",
+            "properties":
+            {
+                "timestamp":
+                {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "The date and time (timestamp) when the BOM was created."
+                },
+                "lifecycles":
+                {
+                    "type": "array",
+                    "description": "Lifecycles communicate the stage(s) in which data in the BOM was captured.",
+                    "items":
+                    {
+                        "title": "lifecycle",
+                        "type": "object",
+                        "description": "The product lifecycle(s) that this BOM represents.",
+                        "required":
+                        [
+                            "phase"
+                        ],
+                        "properties":
+                        {
+                            "phase":
+                            {
+                                "type": "string",
+                                "description": "A pre-defined phase in the product lifecycle.",
+                                "enum":
+                                [
+                                    "post-build"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "authors":
+                {
+                    "type": "array",
+                    "description": "The person(s) or entity that created the BOM.",
+                    "items":
+                    {
+                        "title": "Authors",
+                        "type": "object",
+                        "properties":
+                        {
+                            "name":
+                            {
+                                "title": "Name",
+                                "type": "string",
+                                "description": "The name of a contact."
+                            },
+                            "email":
+                            {
+                                "title": "Email",
+                                "type": "string",
+                                "format": "idn-email",
+                                "description": "The email address of the contact."
+                            },
+                            "phone":
+                            {
+                                "title": "Phone",
+                                "type": "string",
+                                "description": "The phone number of the contact"
+                            }
+                        }
+                    }
+                },
+                "properties":
+                {
+                    "type": "array",
+                    "description": "Additional user-defined property fields.",
+                    "items":
+                    {
+                        "title": "Properties",
+                        "type": "object",
+                        "properties":
+                        {
+                            "name":
+                            {
+                                "type": "string",
+                                "description": "The name of the defined property"
+                            },
+                            "value":
+                            {
+                                "type": "string",
+                                "description": "The output value for the defined property."
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "components":
+        {
+            "type": "array",
+            "description": "A list of all Report Hosts found on the system.",
+            "items":
+            {
+                "title": "components",
+                "type": "object",
+                "required":
+                [
+                    "name",
+                    "type"
+                ],
+                "properties":
+                {
+                    "name":
+                    {
+                        "type": "string",
+                        "description": "The report host name of the component."
+                    },
+                    "type":
+                    {
+                        "type": "string",
+                        "description": "The type of component each report host closely matches to.",
+                        "enum":
+                        [
+                            "device"
+                        ]
+                    },
+                    "hashes":
+                    {
+                        "type": "array",
+                        "description": "The hashes generated on each report host component.",
+                        "items":
+                        {
+                            "type": "object",
+                            "required":
+                            [
+                                "alg",
+                                "content"
+                            ],
+                            "properties":
+                            {
+                                "alg":
+                                {
+                                    "type": "string",
+                                    "description": "The algorithm used to generate the hash.",
+                                    "enum":
+                                    [
+                                        "MD5",
+                                        "SHA-1",
+                                        "SHA-256"
+                                    ]
+                                },
+                                "content":
+                                {
+                                    "type": "string",
+                                    "description": "The generated hash value.",
+                                    "pattern": "^([a-fA-F0-9]{32}|[a-fA-F0-9]{40}|[a-fA-F0-9]{64}|[a-fA-F0-9]{96}|[a-fA-F0-9]{128})$"
+                                }
+                            }
+                        }
+                    },
+                    "cpe":
+                    {
+                        "type": "string",
+                        "description": "A well-formed CPE ID that conforms to CPE 2.3 specification."
+                    },
+                    "properties":
+                    {
+                        "type": "array",
+                        "description": "Additional user-defined property fields.",
+                        "items":
+                        {
+                            "type": "object",
+                            "required":
+                            [
+                                "name",
+                                "value"
+                            ],
+                            "properties":
+                            {
+                                "name":
+                                {
+                                    "type": "string",
+                                    "description": "The name of the defined property."
+                                },
+                                "value":
+                                {
+                                    "type": "string",
+                                    "description": "The output value of the defined property"
+                                }
+                            }
+                        }
+                    },
+                    "bom-ref":
+                    {
+                        "type": "string",
+                        "description": "An unique numeric identifier that is used to reference the component within the SBOM.",
+                        "pattern": "reportHostName.randomNumeric"
+                    }
+                }
+            }
+        },
+        "dependencies":
+        {
+            "type": "array",
+            "description": "Software dependencies found on a report host component. Report host are not included if no software dependencies are found.",
+            "items":
+            {
+                "type": "object",
+                "required":
+                [
+                    "ref"
+                ],
+                "properties":
+                {
+                    "ref":
+                    {
+                        "type": "string",
+                        "description": "Name of the report host the dependencies are found on."
+                    },
+                    "dependsOn":
+                    {
+                        "type": "string",
+                        "description": "List of all installed software found on the report host."
+                    }
+                }
+            }
+        },
+        "vulnerabilities":
+        {
+            "type": "array",
+            "description": "The CVEs identified by the Report Items within each Report Host.",
+            "uniqueItems": true,
+            "items":
+            {
+                "type": "object",
+                "properties":
+                {
+                    "bom-ref":
+                    {
+                        "type": "string",
+                        "description": "An unique alpha numeric identifier that is used to reference the vulnerability within the SBOM.",
+                        "pattern": "cveID-randomAlphaNumeric"
+                    },
+                    "id":
+                    {
+                        "type": "string",
+                        "description": "The unique identifier that identifies the particular vulnerability."
+                    },
+                    "source":
+                    {
+                        "type": "object",
+                        "description": "The authoritative source that published the vulnerability.",
+                        "properties":
+                        {
+                            "name":
+                            {
+                                "type": "string",
+                                "description": "Name of the source that published the vulnerability."
+                            },
+                            "url":
+                            {
+                                "type": "string",
+                                "description": "The source URL for the vulnerability."
+                            }
+                        }
+                    },
+                    "ratings":
+                    {
+                        "type": "array",
+                        "description": "Defines the severity or risk ratings of the vulnerability.",
+                        "items":
+                        {
+                            "type": "object",
+                            "properties":
+                            {
+                                "score":
+                                {
+                                    "type": "number",
+                                    "description": "The assigned base score for the vulnerability."
+                                },
+                                "method":
+                                {
+                                    "type": "string",
+                                    "description": "Risk or severity scoring methodology used for the scoring.",
+                                    "enum":
+                                    [
+                                        "CVSSv2",
+                                        "CVSSv3",
+                                        "CVSSv31",
+                                        "CVSSv4",
+                                        "OWASP",
+                                        "SSVC",
+                                        "other"
+                                    ]
+                                },
+                                "vector":
+                                {
+                                    "type": "string",
+                                    "description": "The textual representation of the base score."
+                                }
+                            }
+                        }
+                    },
+                    "description":
+                    {
+                        "type": "string",
+                        "description": "A textual description of the vulnerability."
+                    },
+                    "recommendations":
+                    {
+                        "type": "array",
+                        "description": "Instructions or guidance provided to the end-user of the software to mitigate or remediate the vulnerability.",
+                        "items":
+                        {
+                            "type": "string",
+                            "description": "Recommendations provided to the end-user to mitigate the risk."
+                        }
+                    },
+                    "published":
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "The date and time the vulnerability was first published."
+                    },
+                    "affects":
+                    {
+                        "type": "array",
+                        "description": "The report host(s) that the vulnerability is found on.",
+                        "uniqueItems": true,
+                        "items":
+                        {
+                            "type": "object",
+                            "required":
+                            [
+                                "ref"
+                            ],
+                            "properties":
+                            {
+                                "ref":
+                                {
+                                    "type": "string",
+                                    "description": "The report host name(s) that the vulnerability exists on."
+                                }
+                            }
+                        }
+                    },
+                    "properties":
+                    {
+                        "type": "array",
+                        "description": "Additional user-defined property field(s).",
+                        "items":
+                        {
+                            "type": "object",
+                            "properties":
+                            {
+                                "name":
+                                {
+                                    "title": "cdx:vulnerability:portNumber",
+                                    "type": "string",
+                                    "description": "The port that has the vulnerability."
+                                },
+                                "value":
+                                {
+                                    "type": "string",
+                                    "description": "The port number that the vulnerability was discovered on."
+                                },
+                                "name":
+                                {
+                                    "title": "cdx:vulnerability:exploitAvailable",
+                                    "type": "string",
+                                    "description": "If the vulnerability has a documented exploit available or not."
+
+                                },
+                                "value":
+
+                                {   "type": "string",
+                                    "description": "Boolean representing if an exploit is available or not."
+
+                                },
+                                "name":
+                                {   
+                                    "title": "cdx:vulnerability:pluginName",
+                                    "type": "string",
+                                    "description": "Nessus plugin that identified the vulnerability."
+
+                                },
+                                "value":
+                                {
+                                    "type": "string",
+                                    "description": "Name of the plugin that identified the vulnerability."
+
+                                },
+                                "name":
+                                {   
+                                    "title": "cdx:vulnerability:cvssTemporalscore",
+                                    "type": "string",
+                                    "description": "The temporal score assigned to the vulnerability."
+
+                                },
+                                "value":
+                                {
+                                    "type": "string",
+                                    "description": "Numerical representation of the temporal score assigned."
+
+                                },
+                                "name":
+                                {   
+                                    "title": "cdx:vulnerability:cvssTemporalvector",
+                                    "type": "string",
+                                    "description": "The temporal vector assigned to the vulnerability."
+
+                                },
+                                "value":
+                                {
+                                    "type": "string",
+                                    "description": "Textual representation of the temporal score assigned."
+
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
