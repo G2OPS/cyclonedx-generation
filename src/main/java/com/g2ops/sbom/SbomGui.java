@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 public class SbomGui {
 	
 	private static final Logger LOGGER = Logger.getLogger(SbomGui.class.getName());
+	private static String selectedFileName;
 
 	public static void main(String[] args) {
 		
@@ -36,7 +37,8 @@ public class SbomGui {
 
 		for (File nessusFile : nessusFiles) {
 			
-			LOGGER.info("Processing File Name: " + nessusFile.getName());
+			selectedFileName = nessusFile.getName();
+			LOGGER.info("Processing File Name: " + selectedFileName);
 
 			try (InputStream inputStream = Files.newInputStream(nessusFile.toPath())) {
 				NessusParser.parseXML(inputStream, nessusFile);
@@ -45,6 +47,11 @@ public class SbomGui {
 				e.printStackTrace();
 			}
 		}
+	}
+	
+	// Getter. 
+	public static String getSelectedFileName() {
+		return selectedFileName;
 	}
 
 }

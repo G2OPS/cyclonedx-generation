@@ -7,14 +7,18 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
-import javax.swing.JOptionPane;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.cyclonedx.model.Dependency;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -24,16 +28,20 @@ import org.xml.sax.SAXException;
 public class NessusParser {
 
 	private static final Logger LOGGER = Logger.getLogger(NessusParser.class.getName());
+	private static final String CVE = "cve";
+	private static final String CWE = "cwe";
+	private static final String SCAN_INFO_PLUGIN_ID = "19506";
+	private static final String WINDOWS_PLUGIN_ID = "20811";
+	private static final String LINUX_PLUGIN_ID = "22869";
 
-	private static final String CPE_PLUGIN_TAG = "Common Platform Enumeration (CPE)";
-	private static final String PLUGIN_OUTPUT_TAG = "plugin_output";
-	private static final String COMMON_VULNERABILITY_TAG = "cve";
+	private static List<ComponentsRecord> reportHostsList = new ArrayList<>();
+	private static List<VulnerabilitiesRecord> vulnerabilitiesRecord = new ArrayList<>();
+	private static Map<String, Set<String>> cveReportHostMap = new HashMap<>();
+	private static Map<String, List<Dependency>> swInventoryHostMap = new HashMap<>();
+	private static List<Dependency> dependenciesList;
 
-	private static List<String> CPE_IDs = new ArrayList<>();
-	private static List<ComponentsRecord> SOFTWARE_COMPONENTS_RECORD = new ArrayList<>();
-	private static List<ComponentsRecord> HARDWARE_COMPONENTS_RECORD = new ArrayList<>();
-	private static List<VulnerabilitiesRecord> VULNERABILITIES_RECORD = new ArrayList<>();
-	private static String externalRefsContent;
+	private static boolean continueExtraction = false;
+	private static String cveToBeAdded = "";
 
 	/**
 	 * Reads nessus files and iterates through relevent data fields.
@@ -48,216 +56,210 @@ public class NessusParser {
 
 			// Remove any whitespace and structural irregularities.
 			document.getDocumentElement().normalize();
-			
+
 			// Get all ReportHosts.
 			NodeList reportHostList = document.getElementsByTagName("ReportHost");
-			extractHardwareComponents(reportHostList);
-			
-			// Get all ReportItems. 
-			NodeList reportItemList = document.getElementsByTagName("ReportItem");
+			// Iterate over each ReportHost.
+			for (int i = 0; i < reportHostList.getLength(); i++) {
+				Node reportHostNode = reportHostList.item(i);
 
-			boolean foundCpePlugin = false;
-			boolean foundVulnNode = false;
+				if (reportHostNode.getNodeType() == Node.ELEMENT_NODE) {
+					Element reportHostElement = (Element) reportHostNode;
+					String reportHostName = reportHostElement.getAttribute("name");
+					// Get Host Properties for each ReportHost.
+					NodeList reportHostProperties = reportHostElement.getElementsByTagName("HostProperties");
+					extractComponents(reportHostProperties);
 
-			for (int i = 0; i < reportItemList.getLength(); i++) {
-				Node reportItemNode = reportItemList.item(i);
-
-				if (reportItemNode.getNodeType() == Node.ELEMENT_NODE) {
-					Element reportItemElement = (Element) reportItemNode;
-
-					// Check if plugin name equals Common Platform Enumeration.
-					String pluginName = reportItemElement.getAttribute("pluginName");
-					if (CPE_PLUGIN_TAG.equalsIgnoreCase(pluginName)) {
-						foundCpePlugin = true;
-						
-						// Extract plugin_output tag.
-						Node pluginOutputNode = reportItemElement.getElementsByTagName(PLUGIN_OUTPUT_TAG).item(0);
-						Node externalRefsNode = reportItemElement.getElementsByTagName("see_also").item(0);
-						
-						if (pluginOutputNode  != null && pluginOutputNode.getNodeType() == Node.ELEMENT_NODE) {
-							Element pluginOutputElement = (Element) pluginOutputNode;
-							// Extract cpe info from plugin output. 
-							String pluginOutputContent = pluginOutputElement.getTextContent();
-							extractCpeID(pluginOutputContent);
-						}
-						//Extract external references from external tag node. 
-						if (externalRefsNode != null && externalRefsNode.getNodeType() == Node.ELEMENT_NODE) {
-							Element externalRefsElement = (Element) externalRefsNode;
-							
-							externalRefsContent = externalRefsElement.getTextContent();
-						
-						}
-					}
-					// Check if reportItem element contains vulnerability data.
-					if (reportItemElement.getElementsByTagName(COMMON_VULNERABILITY_TAG).item(0) != null) {
-						foundVulnNode = true;
-						extractVulnData(reportItemElement);
-					}
+					// Get all ReportItems for each ReportHost.
+					NodeList reportItemList = reportHostElement.getElementsByTagName("ReportItem");
+					extractVulnData(reportItemList, reportHostName);
+					extractSoftwareData(reportItemList, reportHostName);
 				}
+			}
 
-			}
-			// Iterate over data list and create records.
-			for (String cpeId : CPE_IDs) {
-				createComponentRecord(cpeId);
-			}
 			// Build SBOMs.
-			SbomBuilder.generateSbom();
-
-			if (!foundCpePlugin) {
-				JOptionPane.showMessageDialog(null, "The selected Nessus file(s) did not have CPE plugins enabled.", "Info", JOptionPane.INFORMATION_MESSAGE);
-			}
-
-			if (!foundVulnNode) {
-				JOptionPane.showMessageDialog(null, "The selected Nessus file(s) did not contain vulnerability data", "Info", JOptionPane.INFORMATION_MESSAGE);
-			}
+			SbomBuilder.generateSBOM();
 
 		} catch (ParserConfigurationException | SAXException | IOException e) {
-			e.printStackTrace();
+			LOGGER.info("Exception thrown while parsing : " + e.getMessage());
 		}
 
 	}
-	
+
 	/**
-	 * Extracts all hardware components info from Nessus file(s). 
+	 * Extracts compoennt data from Report Hosts.
 	 * 
-	 * @param NodeList reportHostList
+	 * @param reportHostList
 	 */
+	private static void extractComponents(NodeList reportHostProperties) {
 
-	private static void extractHardwareComponents(NodeList reportHostList) {
+		// Get all Host Properties.
+		Element hostPropertiesElement = (Element) reportHostProperties.item(0);
 
-		for (int i = 0; i < reportHostList.getLength(); i++) {
-			Node reportHostNode = reportHostList.item(i);
+		// Check if the system-type tag exists.
+		NodeList hostPropertiesTags = hostPropertiesElement.getElementsByTagName("tag");
 
-			if (reportHostNode.getNodeType() == Node.ELEMENT_NODE) {
-				Element reportHostElement = (Element) reportHostNode;
+		ComponentsRecord reportHostComponent = new ComponentsRecord();
+		Map<Integer, String> cpeValues = new HashMap<>();
 
-				// Get all Host Properties.
-				NodeList hostPropertiesList = reportHostElement.getElementsByTagName("HostProperties");
-				if (hostPropertiesList.getLength() > 0) {
-					Element hostPropertiesElement = (Element) hostPropertiesList.item(0);
-					// Check if the system-type tag exists.
-					NodeList systemTypeTags = hostPropertiesElement.getElementsByTagName("tag");
-					if (systemTypeTags != null) {
+		// Loop through all tags under HostProperties.
+		for (int j = 0; j < hostPropertiesTags.getLength(); j++) {
+			Element tagElement = (Element) hostPropertiesTags.item(j);
+			String tagName = tagElement.getAttribute("name");
+			String tagValue = tagElement.getTextContent();
 
-						for (int j = 0; j < systemTypeTags.getLength(); j++) {
-							Element tagElement = (Element) systemTypeTags.item(j);
-							String tagName = tagElement.getAttribute("name");
-							
-							if (tagName.equalsIgnoreCase("system-type")) {
-								// Instantiate Components Record for HW items. 
-								ComponentsRecord hwComponentRec = new ComponentsRecord();
-								hwComponentRec.setHwType(tagElement.getTextContent());
-								// Set other properties if device type is available.
-								if (tagName.equalsIgnoreCase("operating-system")) {
-									hwComponentRec.setHwOS(tagElement.getTextContent());
-								}
-								HARDWARE_COMPONENTS_RECORD.add(hwComponentRec);
-							}
-
-						}
-					}
+			// Set necesssary report hosts tags.
+			if (tagName.equalsIgnoreCase("host-ip")) {
+				reportHostComponent.setReportHostName(tagValue);
+			}
+			if (tagName.equalsIgnoreCase("system-type")) {
+				reportHostComponent.setSystemType(tagValue);
+			}
+			if (tagName.equalsIgnoreCase("operating-system")) {
+				reportHostComponent.setOperatingSystem(tagValue);
+			}
+			if (tagName.equalsIgnoreCase("mac-address")) {
+				String macAddresses = tagValue.trim().replace("\n", ", ");
+				reportHostComponent.setMacAddress(macAddresses);
+			}
+			if (tagName.startsWith("cpe")) {
+				int cpeNumber = 0;
+				// If there are more than one cpe attribute.
+				if (tagName.contains("-")) {
+					String[] tagNameParts = tagName.split("-");
+					cpeNumber = Integer.parseInt(tagNameParts[1]);
+					cpeValues.put(cpeNumber, tagValue);
+				} else {
+					reportHostComponent.setComponentCpe(conditionCpe(tagValue));
 				}
 			}
-		}
-
-	}
-
-	/**
-	 * Extracts CPE ID from plugin output tag.
-	 * 
-	 * @param pluginOutputElemet
-	 * @return CPE list.
-	 */
-	private static List<String> extractCpeID(String pluginOutputContent) {
-
-		int startIndex = pluginOutputContent.indexOf("cpe:");
-
-		while (startIndex != -1) {
-			// Find the endIndex once the cpe substring is found.
-			int spaceIndex = pluginOutputContent.indexOf(" ", startIndex);
-			int newLineIndex = pluginOutputContent.indexOf("\n", startIndex);
-
-			int endIndex;
-
-			if (spaceIndex != -1 && newLineIndex != -1) {
-				// If both spaceIndex & newLineIndex are found, choose the one that comes first.
-				endIndex = Math.min(spaceIndex, newLineIndex);
+			// If only one cpe exists in cpeValues.
+			if (cpeValues.size() == 1) {
+				reportHostComponent.setComponentCpe(conditionCpe(cpeValues.values().iterator().next()));
+				// More than one cpe exists in cpeValues.
 			} else {
-				// Use the one that is found.
-				endIndex = Math.max(spaceIndex, newLineIndex);
+				int highestCpeNumber = 0;
+				String highestCpeValue = null;
+				for (Map.Entry<Integer, String> entry : cpeValues.entrySet()) {
+					int cpeNumber = entry.getKey();
+					if (cpeNumber > highestCpeNumber) {
+						highestCpeNumber = cpeNumber;
+						highestCpeValue = entry.getValue();
+					}
+				}
+				if (highestCpeValue != null) {
+					reportHostComponent.setComponentCpe(conditionCpe(highestCpeValue));
+				}
 			}
 
-			if (endIndex == -1) {
-				// If no whitespace or newline is found, then endIndex will end of content.
-				endIndex = pluginOutputContent.length();
-			}
-
-			String cpeId = pluginOutputContent.substring(startIndex, endIndex).trim();
-
-			// Check for duplicates before adding.
-			if (!CPE_IDs.contains(cpeId)) {
-				CPE_IDs.add(cpeId);
-			}
-
-			// Find the next occurrence of "cpe:" in the remaining content
-			startIndex = pluginOutputContent.indexOf("cpe:", endIndex);
 		}
+		reportHostsList.add(reportHostComponent);
 
-		if (CPE_IDs.isEmpty()) {
-			LOGGER.info("No cpe found in <plugin_output>");
-		}
-		return CPE_IDs;
 	}
 
 	/**
-	 * Creates Cpe Record, spilts CPE ID and sets indiviual component fields.
+	 * Takes CPE Id and conforms it to 2.3 specification.
 	 * 
-	 * @param CPE ID.
-	 * @return Cpe Record.
+	 * @param cpeTagValue.
+	 * @return conditionedCpe.
 	 */
-	private static void createComponentRecord(String cpeId) {
-		// Format Cpe Id and spilt by the colon.
-		String formatCpe = cpeId.replace("/", "2.3:");
-		String[] cpeComponents = formatCpe.split(":");
-
-		ComponentsRecord swComponentRec = new ComponentsRecord();
-		swComponentRec.setSwCpeId(formatCpe);
-		swComponentRec.setSwPart(cpeComponents[2]);
-		swComponentRec.setSwVendor(cpeComponents[3]);
-		swComponentRec.setSwProduct(cpeComponents[4]);
-		swComponentRec.setSwExternalRefs(externalRefsContent);
-
-		// Check if version exists before accessing the index.
-		if (cpeComponents.length > 5) {
-			swComponentRec.setSwVersion(cpeComponents[5]);
-		}
-
-		SOFTWARE_COMPONENTS_RECORD.add(swComponentRec);
-
+	private static String conditionCpe(String cpeTagValue) {
+		String conditionedCpe = cpeTagValue.replace("/", "2.3:");
+		return conditionedCpe;
 	}
-	
+
 	/**
 	 * Extracts vulnerability data from reportItem & saves it to vuln record.
 	 * 
 	 * @param reportItemElement , cvssScore Node.
 	 */
-	private static void extractVulnData(Element reportItemElement) {
+	private static void extractVulnData(NodeList reportItemList, String reportHostName) {
 
-		Node cvssScoreElementNode = reportItemElement.getElementsByTagName("cvss_base_score").item(0);
-		Node cveElement = reportItemElement.getElementsByTagName("cve").item(0);
-		Node cvssTempScoreElement = reportItemElement.getElementsByTagName("cvss_base_score").item(0);
-		Node cvssTempVectorElement = reportItemElement.getElementsByTagName("cvss_temporal_vector").item(0);
-		Node cvssVectorElement = reportItemElement.getElementsByTagName("cvss_vector").item(0);
-		Node cweElement = reportItemElement.getElementsByTagName("cwe").item(0);
-		Node recommedationElement = reportItemElement.getElementsByTagName("solution").item(0);
-		Node descriptionElement = reportItemElement.getElementsByTagName("description").item(0);
-		Node publishedDateElement = reportItemElement.getElementsByTagName("vuln_publication_date").item(0);
-		Node riskFactorElement = reportItemElement.getElementsByTagName("risk_factor").item(0);
-		Node exploitAvailableElement = reportItemElement.getElementsByTagName("exploit_available").item(0);
+		for (int i = 0; i < reportItemList.getLength(); i++) {
+			Node reportItemNode = reportItemList.item(i);
 
-		setVulnRecord(cvssScoreElementNode, cveElement, cvssTempScoreElement, cvssTempVectorElement, cvssVectorElement, cweElement, recommedationElement,
-				descriptionElement, publishedDateElement, riskFactorElement, exploitAvailableElement);
+			if (reportItemNode.getNodeType() == Node.ELEMENT_NODE) {
+				Element reportItemElement = (Element) reportItemNode;
+				NodeList childNodes = reportItemElement.getChildNodes();
 
+				// Iterate over all child nodes.
+				for (int j = 0; j < childNodes.getLength(); j++) {
+					Node node = childNodes.item(j);
+
+					// Check if the child node is a cve element.
+					if (node.getNodeType() == Node.ELEMENT_NODE && node.getNodeName().equalsIgnoreCase(CVE)) {
+						String cve = node.getTextContent().trim();
+						// Check if CVE should be added to the SBOM.
+						addCVE(cve, reportHostName);
+					}
+					
+					// Get all other reportItems tag if new cve is found.
+					if (continueExtraction) {
+						
+						// Extract CVEs. 
+						NodeList cweNodes = reportItemElement.getElementsByTagName(CWE);
+						Integer cweIDvalue = 0;
+						for (int k=0; k < cweNodes.getLength(); k++) {
+							Node cweNode = cweNodes.item(k);
+							if (cweNode.getNodeType() == Node.ELEMENT_NODE) {
+								String cweID = cweNode.getTextContent().trim();
+								cweIDvalue = Integer.parseInt(cweID);
+							}
+							
+							String reportItemPort = reportItemElement.getAttribute("port");
+							String reportItemPluginName = reportItemElement.getAttribute("pluginName");
+							Node cvssBaseScoreElement = reportItemElement.getElementsByTagName("cvss_base_score").item(0);
+							Node cvssBaseVectorElement = reportItemElement.getElementsByTagName("cvss_vector").item(0);
+							Node cvssTempScoreElement = reportItemElement.getElementsByTagName("cvss_temporal_score").item(0);
+							Node cvssTempVectorElement = reportItemElement.getElementsByTagName("cvss_temporal_vector").item(0);
+							Node recommedationElement = reportItemElement.getElementsByTagName("solution").item(0);
+							Node descriptionElement = reportItemElement.getElementsByTagName("description").item(0);
+							Node publishedDateElement = reportItemElement.getElementsByTagName("vuln_publication_date").item(0);
+							Node riskFactorElement = reportItemElement.getElementsByTagName("risk_factor").item(0);
+							Node exploitAvailableElement = reportItemElement.getElementsByTagName("exploit_available").item(0);
+							
+							createVulnRecord(cvssBaseScoreElement, cvssBaseVectorElement, cvssTempScoreElement, cvssTempVectorElement, recommedationElement,
+									descriptionElement, publishedDateElement, riskFactorElement, exploitAvailableElement, cveToBeAdded, reportItemPort, cweIDvalue, reportItemPluginName);
+						}
+
+
+
+					}
+					// Reset flag for the new new cve.
+					continueExtraction = false;
+				}
+
+			}
+
+		}
+
+	}
+
+	/**
+	 * Checks the CVE found against the exisitng cveReportHost map.
+	 * 
+	 * @param cve            - cve id from the report item.
+	 * @param reportHostName - host name the tag is found under.
+	 */
+
+	private static void addCVE(String cve, String reportHostName) {
+		// Check if CVE is already in the map.
+		if (cveReportHostMap.containsKey(cve)) {
+			Set<String> reportHosts = cveReportHostMap.get(cve);
+			// Check if the assocaited report host already exists.
+			if (!reportHosts.contains(reportHostName)) {
+				// If not, then add to the map.
+				reportHosts.add(reportHostName);
+			}
+
+		} else {
+			// If the CVE is new, add to the map and set extraction flag to true.
+			Set<String> reportHosts = new HashSet<>();
+			reportHosts.add(reportHostName);
+			cveReportHostMap.put(cve, reportHosts);
+			cveToBeAdded = cve;
+			continueExtraction = true;
+		}
 	}
 
 	/**
@@ -274,13 +276,19 @@ public class NessusParser {
 	 * @param descriptionElement
 	 * @param publishedDateElement
 	 */
-	private static void setVulnRecord(Node cvssScoreElementNode, Node cveElement, Node cvssTempScoreElement, Node cvssTempVectorElement, Node cvssVectorElement,
-			Node cweElement, Node recommedationElement, Node descriptionElement, Node publishedDateElement, Node riskFactorElement, Node exploitAvailableElement) {
+	private static void createVulnRecord(Node cvssBaseScoreElement, Node cvssBaseVectorElement, Node cvssTempScoreElement, Node cvssTempVectorElement,
+			Node recommedationElement, Node descriptionElement, Node publishedDateElement, Node riskFactorElement, Node exploitAvailableElement,
+			 String cveToBeAdded, String reportItemPort, Integer cweIDvalue, String reportItemPluginName) {
 
 		VulnerabilitiesRecord vulnerabilityRecord = new VulnerabilitiesRecord();
 
-		if (cvssScoreElementNode != null && cvssScoreElementNode.getNodeType() == Node.ELEMENT_NODE) {
-			String cvssScore = cvssScoreElementNode.getTextContent();
+		vulnerabilityRecord.setCveID(cveToBeAdded);
+		vulnerabilityRecord.setPort(reportItemPort);
+		vulnerabilityRecord.setPluginName(reportItemPluginName);
+		vulnerabilityRecord.setCweID(cweIDvalue);
+
+		if (cvssBaseScoreElement != null && cvssBaseScoreElement.getNodeType() == Node.ELEMENT_NODE) {
+			String cvssScore = cvssBaseScoreElement.getTextContent();
 			try {
 				Double cvssScoreAsDouble = Double.parseDouble(cvssScore);
 				vulnerabilityRecord.setCvssBaseScore(cvssScoreAsDouble);
@@ -288,29 +296,15 @@ public class NessusParser {
 				e.printStackTrace();
 			}
 		}
-		if (cveElement != null && cveElement.getNodeType() == Node.ELEMENT_NODE) {
-			vulnerabilityRecord.setCveID(cveElement.getTextContent());
-		}
 		if (cvssTempScoreElement != null && cvssTempScoreElement.getNodeType() == Node.ELEMENT_NODE) {
 			vulnerabilityRecord.setCvssTemporalScore(cvssTempScoreElement.getTextContent());
-				
+
 		}
 		if (cvssTempVectorElement != null && cvssTempVectorElement.getNodeType() == Node.ELEMENT_NODE) {
 			vulnerabilityRecord.setCvssTemporalVector(cvssTempVectorElement.getTextContent());
 		}
-		if (cvssVectorElement != null && cvssVectorElement.getNodeType() == Node.ELEMENT_NODE) {
-			vulnerabilityRecord.setCvssVector(cvssVectorElement.getTextContent());
-		}
-		if (cweElement != null && cweElement.getNodeType() == Node.ELEMENT_NODE) {
-			String cweID = cweElement.getTextContent();
-			try {
-				int cweIDvalue = Integer.parseInt(cweID);
-				List<Integer> cweIDlist = new ArrayList<>();
-				cweIDlist.add(cweIDvalue);
-				vulnerabilityRecord.setCweID(cweIDlist);
-			} catch (NumberFormatException e) {
-				e.printStackTrace();
-			}
+		if (cvssBaseVectorElement != null && cvssBaseVectorElement.getNodeType() == Node.ELEMENT_NODE) {
+			vulnerabilityRecord.setCvssVector(cvssBaseVectorElement.getTextContent());
 		}
 		if (recommedationElement != null && recommedationElement.getNodeType() == Node.ELEMENT_NODE) {
 			vulnerabilityRecord.setRecommendation(recommedationElement.getTextContent());
@@ -320,9 +314,9 @@ public class NessusParser {
 		}
 		if (publishedDateElement != null && publishedDateElement.getNodeType() == Node.ELEMENT_NODE) {
 			String dateString = publishedDateElement.getTextContent();
-			
+
 			SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd");
-			
+
 			try {
 				Date publishedDate = dateFormat.parse(dateString);
 				vulnerabilityRecord.setPublishedDate(publishedDate);
@@ -338,17 +332,127 @@ public class NessusParser {
 			vulnerabilityRecord.setExploitAvailable(exploitAvailableElement.getTextContent());
 		}
 
-		
-		VULNERABILITIES_RECORD.add(vulnerabilityRecord);
+		vulnerabilitiesRecord.add(vulnerabilityRecord);
 	}
 
-	// Getter for record lists.
-	public static List<ComponentsRecord> getComponentsRecord() {
-		return SOFTWARE_COMPONENTS_RECORD;
+	/**
+	 * Iterates through the Report Items and looks for plugins that output Software
+	 * information.
+	 * 
+	 * @param reportItemList - List of Report Items for each Report Host.
+	 * @param reportHostName - Report Host under which Report Items fall.
+	 */
+
+	private static void extractSoftwareData(NodeList reportItemList, String reportHostName) {
+
+		for (int i = 0; i < reportItemList.getLength(); i++) {
+			Node reportItemNode = reportItemList.item(i);
+
+			if (reportItemNode.getNodeType() == Node.ELEMENT_NODE) {
+				Element reportItemElement = (Element) reportItemNode;
+				String pluginAttr = reportItemElement.getAttribute("pluginID");
+
+				// Check for desired SW plugins & retrieve the plugin output.
+				if (pluginAttr.equalsIgnoreCase(WINDOWS_PLUGIN_ID) || pluginAttr.equalsIgnoreCase(LINUX_PLUGIN_ID)) {
+					Node pluginOutputNode = reportItemElement.getElementsByTagName("plugin_output").item(0);;;;;;;
+					// Strip the plugin output off unncessary data.
+					createSoftwareDependencies(pluginOutputNode, reportHostName); 
+				}
+			}
+		}
 	}
 
+
+	/**
+	 * Strips off unnceccary information and adds each software as a dependency to the Map. 
+	 * 
+	 * @param pluginOutput   - plugin output node content. 
+	 * @param reportHostName - report host name. 
+	 */
+	private static void createSoftwareDependencies(Node pluginOutput, String reportHostName) {
+		if (pluginOutput != null) {
+			String outputText = pluginOutput.getTextContent().trim();
+
+			// Remove unnecessary heading on top.
+			outputText = outputText.replace("The following software are installed on the remote host :", "");
+			// Remove lines containing "update"
+	        outputText = outputText.replaceAll("(?i).*\\bupdate\\b.*\n", "");
+	        // Remove content starting with "The following updates were installed"
+	        outputText = outputText.replaceFirst("(?s)The following updates were installed.*?</plugin_output>", "");
+	        
+			String[] lines = outputText.split("\n");
+			// Set to save unique SW enteries.
+			List<Dependency> softwareList = new ArrayList<>();
+
+			for (String line : lines) {
+				line = line.trim();
+				if (!line.isEmpty()) {
+					// Remove SW installiation dates from the output, keep SW name & version. 
+					String[] parts = line.split("\\[version");
+					if (parts.length >= 2) {
+						String software = parts[0].trim();
+						// Check if the line contains "KB". if so, skip this line. 
+						if (!software.contains("KB")) {
+							String version = parts[1].split("\\]")[0].trim();
+							// If the software name already contains the version info, then just add name. 
+							Dependency swDependency;
+							if (software.contains(version)) {
+								swDependency = new Dependency(software);
+								// Else, add software name + version. 
+							} else {
+								swDependency = new Dependency(software + " " + version);
+							}
+							softwareList.add(swDependency);								
+						}
+					}
+				}
+			}	
+			// Add report host and assoicated sw list to the map & create dependencies. 
+			swInventoryHostMap.put(reportHostName, softwareList);
+			addSoftwareDependencies(swInventoryHostMap);
+		}
+	}
+
+	/**
+	 * Iterates through the SW inventory map and creates dependency objects based.
+	 * @throws IOException 
+	 * 
+	 */
+	private static void addSoftwareDependencies(Map<String, List<Dependency>> swInventoryHostMap) {
+		// Initialize a new list empty list every time. 
+		dependenciesList = new ArrayList<>();
+
+		for (Map.Entry<String, List<Dependency>> entry : swInventoryHostMap.entrySet()) {
+			String reportHostName = entry.getKey();
+			List<Dependency> softwareList = entry.getValue();
+
+			Dependency dependency = new Dependency(reportHostName);
+
+			// If the software set is not empty.
+			if (!softwareList.isEmpty()) {
+				for (Dependency software : softwareList) {
+					dependency.addDependency(software);
+				}
+			}
+			dependenciesList.add(dependency);
+		}
+	}
+
+	// Getters.
 	public static List<VulnerabilitiesRecord> getVulnerabiltiesRecord() {
-		return VULNERABILITIES_RECORD;
+		return vulnerabilitiesRecord;
+	}
+
+	public static List<ComponentsRecord> getReportHostsList() {
+		return reportHostsList;
+	}
+
+	public static Map<String, Set<String>> getCveReportHostMap() {
+		return cveReportHostMap;
+	}
+
+	public static List<Dependency> getDependenciesList() {
+		return dependenciesList;
 	}
 
 }

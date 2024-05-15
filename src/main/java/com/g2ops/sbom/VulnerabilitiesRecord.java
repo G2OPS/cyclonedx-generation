@@ -1,14 +1,11 @@
 package com.g2ops.sbom;
 
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 public class VulnerabilitiesRecord {
 	
 	private String cveID;
-	private List<Integer> cweID = new ArrayList<>();
-	private String[] osvdbID;
+	private Integer cweID;
 	private String cvssVector;
 	private Double cvssBaseScore;
 	private String cvssTempScore;
@@ -18,6 +15,9 @@ public class VulnerabilitiesRecord {
 	private String description;
 	private String riskFactor;
 	private String exploitAvailable;
+	private String port;
+	private String pluginName;
+	
 	
 	// Getters & setters. 
 	public String getCveID() {
@@ -26,10 +26,10 @@ public class VulnerabilitiesRecord {
 	public void setCveID(String cveID) {
 		this.cveID = cveID;
 	}
-	public List<Integer> getCweID() {
+	public Integer getCweID() {
 		return cweID;
 	}
-	public void setCweID(List<Integer> cweID) {
+	public void setCweID(Integer cweID) {
 		this.cweID = cweID;
 	}
 	public Double getCvssBaseScore() {
@@ -43,12 +43,6 @@ public class VulnerabilitiesRecord {
 	}
 	public void setCvssTemporalScore(String cvssTempScore) {
 		this.cvssTempScore = cvssTempScore;
-	}
-	public String[] getOsvdbID() {
-		return osvdbID;
-	}
-	public void setOsvdbID(String[] osvdbID) {
-		this.osvdbID = osvdbID;
 	}
 	public String getCvssTemporalVector() {
 		return cvssTempVector;
@@ -91,6 +85,18 @@ public class VulnerabilitiesRecord {
 	}
 	public void setExploitAvailable(String exploitAvailable) {
 		this.exploitAvailable = exploitAvailable;
+	}
+	public String getPort() {
+		return port;
+	}
+	public void setPort(String port) {
+		this.port = port;
+	}
+	public String getPluginName() {
+		return pluginName;
+	}
+	public void setPluginName(String pluginName) {
+		this.pluginName = pluginName;
 	}
 
 }

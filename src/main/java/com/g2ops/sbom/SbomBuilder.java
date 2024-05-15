@@ -1,285 +1,329 @@
 package com.g2ops.sbom;
 
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Date;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.model.Model;
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
-import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import org.cyclonedx.BomGeneratorFactory;
 import org.cyclonedx.CycloneDxSchema;
 import org.cyclonedx.model.Bom;
 import org.cyclonedx.model.Component;
 import org.cyclonedx.model.Component.Type;
-import org.cyclonedx.model.ExternalReference;
+import org.cyclonedx.model.Dependency;
 import org.cyclonedx.model.Hash;
+import org.cyclonedx.model.LifecycleChoice;
+import org.cyclonedx.model.Lifecycles;
 import org.cyclonedx.model.Metadata;
 import org.cyclonedx.model.OrganizationalContact;
-import org.cyclonedx.model.OrganizationalEntity;
 import org.cyclonedx.model.Property;
-import org.cyclonedx.model.metadata.ToolInformation;
 import org.cyclonedx.model.vulnerability.Vulnerability;
+import org.cyclonedx.model.vulnerability.Vulnerability.Affect;
 import org.cyclonedx.model.vulnerability.Vulnerability.Rating;
 import org.cyclonedx.model.vulnerability.Vulnerability.Rating.Method;
 import org.cyclonedx.model.vulnerability.Vulnerability.Rating.Severity;
 import org.cyclonedx.model.vulnerability.Vulnerability.Source;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-
-import com.github.packageurl.MalformedPackageURLException;
-import com.github.packageurl.PackageURL;
-import com.github.packageurl.PackageURLBuilder;
-
 
 public class SbomBuilder {
 
-	private static String desktopPath = System.getProperty("user.home") + "/OneDrive - G2 Ops, Inc/Desktop/";
 	private static final Logger LOGGER = Logger.getLogger(SbomBuilder.class.getName());
 
-	public static void generateSbom() {
+	private static String outputPath = System.getProperty("user.home") + "/OneDrive - G2 Ops, Inc/Desktop/";
+	private static List<Hash> hashes = new ArrayList<>();
+	private static Map<String, Set<String>> cveReportHostMap = NessusParser.getCveReportHostMap();
 
-		List<ComponentsRecord> swComponentsRecord = NessusParser.getComponentsRecord();
+	public static void generateSBOM() {
+
+		List<ComponentsRecord> componentRecords = NessusParser.getReportHostsList();
 		List<VulnerabilitiesRecord> vulnRecords = NessusParser.getVulnerabiltiesRecord();
+		List<Dependency> dependencyRecords = NessusParser.getDependenciesList();
 
 		Bom bom = new Bom();
+
 		bom.setMetadata(createMetadata());
-		bom.setSerialNumber("urn:uuid:"+ UUID.randomUUID());
-		
-		if (swComponentsRecord != null) {
+		bom.setSerialNumber("urn:uuid:" + UUID.randomUUID());
 
-			Component swComponent = new Component();
+		// Iterate through all components in the list & add them to BOM.
+		for (ComponentsRecord componentRecord : componentRecords) {
+
+			Component component = new Component();
 			
-			for (ComponentsRecord componentRecord : swComponentsRecord) {
-				
-				swComponent.setHashes(generateHashes());
-				swComponent.setCpe(componentRecord.getSwCpeId());
-				swComponent.setName(componentRecord.getSwProduct());
-				swComponent.setVersion(componentRecord.getSwVersion());
-				swComponent.setType(setComponentType(componentRecord.getSwPart()));
-				swComponent.setSupplier(setOrganizationalEntity(componentRecord.getSwVendor()));
-				swComponent.setExternalReferences(createExternalRefs(componentRecord.getSwExternalRefs()));
-				swComponent.setBomRef(componentRecord.getSwProduct() + "-" + swComponent.getHashes().get(0).getValue());
-				bom.addComponent(swComponent);
+			String componentName = componentRecord.getReportHostName();	
+			component.setBomRef(String.format("%s.%s",componentName,RandomStringUtils.randomNumeric(8)));
+			component.setName(componentRecord.getReportHostName());
+			component.setType(Component.Type.DEVICE);
+			component.setCpe(componentRecord.getComponentCpe());
+			component.setHashes(hashes);
+
+			// Set Component Properties.
+			List<Property> componentPropertiesList = new ArrayList<>();
+
+			if (componentRecord.getSytemType() != null) {
+				Property hwProperty = new Property();
+				hwProperty.setName("cdx:device:systemType");
+				hwProperty.setValue(componentRecord.getSytemType());
+				componentPropertiesList.add(hwProperty);
+			}
+			if (componentRecord.getOperatingSystem() != null) {
+				Property hwProperty = new Property();
+				hwProperty.setName("cdx:device:operatingSystem");
+				hwProperty.setValue(componentRecord.getOperatingSystem());
+				componentPropertiesList.add(hwProperty);
+			}
+			if (componentRecord.getMacAddress() != null) {
+				Property hwProperty = new Property();
+				hwProperty.setName("cdx:device:macAddress");
+				hwProperty.setValue(componentRecord.getMacAddress());
+				componentPropertiesList.add(hwProperty);
 			}
 			
-			// New Component to list out packages / libs used to build the SBOM. 
-			Component toolsUsedComponent = new Component();
-			toolsUsedComponent.setComponents(toolsUsed());
-			// Add all Components to BOM. 
-			bom.addComponent(toolsUsedComponent);
-
-		} else {
-			LOGGER.info("The selected Nessus file(s) did not have CPE plugins enabled.");
+			component.setProperties(componentPropertiesList);
+			
+			bom.addComponent(component);
 		}
-		
+
+		// Iterate through all vulnerabilities in the list & add them to BOM.
 		List<Vulnerability> vulnerabilityList = new ArrayList<>();
-		
-		if (vulnRecords != null) {
-			for (VulnerabilitiesRecord vulnRecord : vulnRecords) {
-				
-				// Set all vulnerability data. 
-				Vulnerability  vulnerability = new Vulnerability();
-				
-				vulnerability.setId(vulnRecord.getCveID());
-				vulnerability.setCwes(vulnRecord.getCweID());
-				vulnerability.setPublished(vulnRecord.getPublishedDate());
-				vulnerability.setSource(setSourceType(vulnRecord.getCveID()));
-				vulnerability.setRecommendation(vulnRecord.getRecommendation());
-				vulnerability.setDescription(getDescription(vulnerability.getSource().getUrl()));
-				vulnerability.setBomRef(String.format("%s-%s", vulnRecord.getCveID(),randomHashLen()));
-				
-				// Set ratings for each vulnerability found. 
-				Rating rating = new Rating();
-				
-				List<Vulnerability.Rating> ratingsList = new ArrayList<>();
-				rating.setScore(vulnRecord.getCvssBaseScore());
-				rating.setVector(vulnRecord.getCvssVector());
-				rating.setMethod(setMethodType(vulnRecord.getCvssVector()));
-				rating.setSeverity(setSeverityType(vulnRecord.getRiskFactor()));
-				
-				ratingsList.add(rating);
-				vulnerability.setRatings(ratingsList);
-				
-				// Set add'l properties for each vulnerability found. 
-				List<Property> propertyList = new ArrayList<>();
-		
-				if (vulnRecord.getCvssTemporalScore() != null) {
-					Property scoreProperty = new Property();
-					scoreProperty.setName("cvss temporal score");
-					scoreProperty.setValue(vulnRecord.getCvssTemporalScore());
-					propertyList.add(scoreProperty);
-				}
-				
-				if (vulnRecord.getCvssTemporalVector() != null) {
-					Property vectorProperty = new Property();
-					vectorProperty.setName("cvss temporal vector");
-					vectorProperty.setValue(vulnRecord.getCvssTemporalVector());
-					propertyList.add(vectorProperty);
-				}
-				
-				if (vulnRecord.getExploitAvailable() != null) {
-				    Property exploitProperty = new Property();
-				    exploitProperty.setName("exploit available");
-				    exploitProperty.setValue(vulnRecord.getExploitAvailable());
-				    propertyList.add(exploitProperty);
-				}
-				
-				vulnerability.setProperties((List<Property>) propertyList);
-				
-				vulnerabilityList.add(vulnerability);
-				bom.setVulnerabilities(vulnerabilityList); 	
-				
+
+		for (VulnerabilitiesRecord vulnRecord : vulnRecords) {
+
+			// Set all vulnerability data.
+			Vulnerability vulnerability = new Vulnerability();
+
+			String cveID = vulnRecord.getCveID();
+			vulnerability.setId(cveID);
+			vulnerability.setBomRef(String.format("%s-%S", cveID, RandomStringUtils.randomAlphanumeric(8)));
+			vulnerability.setSource(setSourceType(cveID));
+			vulnerability.setAffects(setAffectedHost(cveID));
+			vulnerability.setCwes(convertToList(vulnRecord.getCweID()));
+			vulnerability.setPublished(vulnRecord.getPublishedDate());
+			vulnerability.setRecommendation(vulnRecord.getRecommendation());
+			vulnerability.setDescription(vulnRecord.getDescription());
+
+			// Set ratings for each vulnerability found.
+			Rating rating = new Rating();
+
+			List<Vulnerability.Rating> ratingsList = new ArrayList<>();
+			rating.setScore(vulnRecord.getCvssBaseScore());
+			rating.setVector(vulnRecord.getCvssVector());
+			rating.setMethod(setMethodType(vulnRecord.getCvssVector()));
+			rating.setSeverity(setSeverityType(vulnRecord.getRiskFactor()));
+
+			ratingsList.add(rating);
+			vulnerability.setRatings(ratingsList);
+
+			// Set add'l properties for each vulnerability found.
+			List<Property> propertyList = new ArrayList<>();
+
+			if (vulnRecord.getCvssTemporalScore() != null) {
+				Property scoreProperty = new Property();
+				scoreProperty.setName("cdx:vulnerability:cvssTemporalscore");
+				scoreProperty.setValue(vulnRecord.getCvssTemporalScore());
+				propertyList.add(scoreProperty);
 			}
-		} else {
-			LOGGER.info("The selected Nessus file(s) did not contain vulnerability data");
+
+			if (vulnRecord.getCvssTemporalVector() != null) {
+				Property vectorProperty = new Property();
+				vectorProperty.setName("cdx:vulnerability:cvssTemporalvector");
+				vectorProperty.setValue(vulnRecord.getCvssTemporalVector());
+				vectorProperty.setValue("Dummy");
+				propertyList.add(vectorProperty);
+			}
+
+			if (vulnRecord.getExploitAvailable() != null) {
+				Property exploitProperty = new Property();
+				exploitProperty.setName("cdx:vulnerability:exploitAvailable");
+				exploitProperty.setValue(vulnRecord.getExploitAvailable());
+				propertyList.add(exploitProperty);
+			}
+
+			if (vulnRecord.getPort() != null) {
+				Property portProperty = new Property();
+				portProperty.setName("cdx:vulnerability:portNumber");
+				portProperty.setValue(vulnRecord.getPort());
+				propertyList.add(portProperty);
+			}
+			
+			if (vulnRecord.getPluginName() != null) {
+				Property vulnPluginName = new Property();
+				vulnPluginName.setName("cdx:vulnerability:pluginName");
+				vulnPluginName.setValue(vulnRecord.getPluginName());
+				propertyList.add(vulnPluginName);
+			}
+			
+			vulnerability.setProperties((List<Property>) propertyList);
+
+			vulnerabilityList.add(vulnerability);
+			bom.setVulnerabilities(vulnerabilityList);
+
 		}
 
-		// Write both JSON and XML versions.
+		// Set Dependencies for the SBOM. 
+		bom.setDependencies(dependencyRecords);
+		
+		// Generate hashes.
+		generateHash("md5");
+		generateHash("sha1");
+		generateHash("sha256");
+
+		// Write SBOM in JSON & XML versions.
+		writeSBOM(bom);
+	}
+
+	/**
+	 * Writes SBOM in Json & Xml formats to the specified output path.
+	 * 
+	 * @param bom  - bom object.
+	 * @param path - set output path.
+	 */
+	private static void writeSBOM(Bom bom) {
 		try {
-			
-			FileWriter jsonWriter = new FileWriter(desktopPath + "sbom.json", false);
+			FileWriter jsonWriter = new FileWriter(outputPath + "sbom.json", false);
 			jsonWriter.write(BomGeneratorFactory.createJson(CycloneDxSchema.VERSION_LATEST, bom).toJsonString());
 			jsonWriter.close();
 
-			FileWriter xmlWriter = new FileWriter(desktopPath + "sbom.xml", false);
+			FileWriter xmlWriter = new FileWriter(outputPath + "sbom.xml", false);
 			xmlWriter.write(String.valueOf(BomGeneratorFactory.createXml(CycloneDxSchema.VERSION_LATEST, bom)));
 			xmlWriter.close();
 
-			LOGGER.info("Sbom generation complete.");
+			LOGGER.info("SBOM generation complete.");
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.info("Error generating SBOM:" + e.getMessage());
 		}
-
 	}
 
 	/**
-	 * Creates and sets metadata for the SBOM.
+	 * Sets metadata such as build process, organization info and such for the BOM. 
 	 * 
-	 * @return An instance of Metadata.
+	 * @return metadata - An instance of Metadata.
 	 */
 	private static Metadata createMetadata() {
+		
 		Metadata metadata = new Metadata();
-		OrganizationalContact author = new OrganizationalContact();
 
 		Date currTimestamp = new Date(System.currentTimeMillis());
 		metadata.setTimestamp(currTimestamp);
+		
+		OrganizationalContact author = new OrganizationalContact();
+		
 		author.setName("G2 Ops Inc");
 		author.setEmail("info@g2-ops.com");
-		author.setPhone("757-965-8330");
 		metadata.addAuthor(author);
-
-//		ToolInformation toolInformation = new ToolInformation();
-//		toolInformation.setComponents(toolsUsed());
-//		metadata.setToolChoice(toolInformation);
 		
-		metadata.setComponent(getProjectComponent());
+		List<LifecycleChoice> lifeCycles = new ArrayList<>();
+		Lifecycles phase = new Lifecycles();
+		LifecycleChoice phaseChoice = new LifecycleChoice();
+		
+		phaseChoice.setPhase(LifecycleChoice.Phase.POST_BUILD);
+		lifeCycles.add(phaseChoice);
+		phase.setLifecycleChoice(lifeCycles);
+		metadata.setLifecycles(phase);
+		
+		Component metadataComponent = new Component();
+		metadataComponent.setType(Type.FILE);
+		metadataComponent.setName(SbomGui.getSelectedFileName());
+		metadata.setComponent(metadataComponent);
+		
+		//TODO
+		Property scanTypeProperty = new Property();
+		Property scanVersionProperty = new Property();
+		
+		List<Property> propertyList = new ArrayList<>();
+		scanTypeProperty.setName("nessus:scan:type");
+		scanTypeProperty.setValue("normal");
+		scanVersionProperty.setName("nessus:scan:version");
+		scanVersionProperty.setValue("6.9.0");
+		
+		propertyList.add(scanTypeProperty);
+		propertyList.add(scanVersionProperty);
+		
+		metadata.setProperties(propertyList);
 		
 		return metadata;
 	}
-	
-	/**
-	 * Genrates hash algorithms of random lengths. 
-	 * 
-	 * @return Hash List. 
-	 */	
-	private static List<Hash> generateHashes(){
-		
-		Hash md5 = new Hash(Hash.Algorithm.MD5, randomHashLen());
-		Hash sha256 = new Hash(Hash.Algorithm.SHA_256, randomHashLen());
-		Hash sha512 = new Hash(Hash.Algorithm.SHA_512, randomHashLen());
-		
-		List<Hash> hashList = Arrays.asList(md5,sha256,sha512);
-		
-		return hashList;
-	}
-	                            
-	/**
-	 * Creates a string of random desired lengths.
-	 * 
-	 * @return A random alphanumeric string.
-	 */
-	private static String randomHashLen() {
-		int[] desiredLength = { 32, 40, 64, 96, 128 };
-		int randomLengthIndex = (int) (Math.random() * desiredLength.length);
-		int randomLength = desiredLength[randomLengthIndex];
 
-		return RandomStringUtils.randomAlphanumeric(randomLength);
-	}
-	 
 	/**
-	 * Sets the Component Type for each SW component in the SBOM based
-	 * on the cpe id part. 
+	 * Generates hash for json & xml sboms and writes each algorithm to its own
+	 * file.
 	 * 
-	 * @param Cpe ID Part component.
+	 * @param bom        - bom object.
+	 * @param path       - output path.
+	 * @param algorithm  - hashing algorithm to be used.
+	 * @param fileFormat - expected file format.
 	 */
-	private static Type setComponentType(String part) {
-		Type componentType = null;
-		if (part.equalsIgnoreCase("a")) {
-			componentType = Component.Type.APPLICATION;
+	private static void generateHash(String algorithm) {
+		try {
+			Path sbomPath = Paths.get(outputPath + "sbom.json");
+			byte[] sbomBytes = Files.readAllBytes(sbomPath);
+
+			Hash hash = null;
+
+			if (algorithm.equals("md5")) {
+				hash = new Hash(Hash.Algorithm.MD5, DigestUtils.md5Hex(sbomBytes));
+			}
+			if (algorithm.equals("sha1")) {
+				hash = new Hash(Hash.Algorithm.SHA1, DigestUtils.sha1Hex(sbomBytes));
+			}
+			if (algorithm.equals("sha256")) {
+				hash = new Hash(Hash.Algorithm.SHA_256, DigestUtils.sha256Hex(sbomBytes));
+			}
+
+			if (hash != null) {
+				hashes.add(hash);
+			}
+
+			FileWriter hashWriter = new FileWriter(outputPath + algorithm + ".json", false);
+			hashWriter.write(hash.getValue());
+			hashWriter.close();
+
+		} catch (IOException e) {
+			LOGGER.info("Error generating hashes: " + e.getMessage());
 		}
-		if (part.equalsIgnoreCase("o")) {
-			componentType = Component.Type.OPERATING_SYSTEM;
-		}
-		if (part.equalsIgnoreCase("h")) {
-			componentType = Component.Type.DEVICE;
-		}
-		return componentType;
+
 	}
-	 
-    /**
-     * Sets the Organizational Entity for each SW component in the SBOM based
-     * on the cpe id vendor. 
-     * 
-     * @param Cpe ID Vendor component.
-     */
-	private static OrganizationalEntity setOrganizationalEntity(String vendor) {
-		OrganizationalEntity organizationalEntity = new OrganizationalEntity();
-		organizationalEntity.setName(vendor);
-		return organizationalEntity;
-	}
-	
+
 	/**
-	 * Sets the Severity Type based on the risk factor for each vulverability. 
+	 * Sets the Severity Type based on the risk factor for each vulverability.
 	 * 
 	 * @param Risk factor.
 	 * @return Severity
 	 */
 	private static Severity setSeverityType(String riskFactor) {
 		Severity severityType = null;
-		if(riskFactor.equalsIgnoreCase("critical")) {
+		if (riskFactor.equalsIgnoreCase("critical")) {
 			severityType = Severity.CRITICAL;
 		}
-		if(riskFactor.equalsIgnoreCase("high")) {
+		if (riskFactor.equalsIgnoreCase("high")) {
 			severityType = Severity.HIGH;
 		}
-		if(riskFactor.equalsIgnoreCase("low")) {
+		if (riskFactor.equalsIgnoreCase("low")) {
 			severityType = Severity.LOW;
 		}
-		if(riskFactor.equalsIgnoreCase("info")) {
+		if (riskFactor.equalsIgnoreCase("info")) {
 			severityType = Severity.INFO;
 		}
-		if(riskFactor.equalsIgnoreCase("none")) {
+		if (riskFactor.equalsIgnoreCase("none")) {
 			severityType = Severity.NONE;
 		}
-		if(riskFactor.equalsIgnoreCase("unknown")) {
+		if (riskFactor.equalsIgnoreCase("unknown")) {
 			severityType = Severity.UNKNOWN;
 		}
 		return severityType;
 	}
-	
+
 	/**
-	 * Sets source URL and Name for each CVE. 
+	 * Sets source URL and Name for each CVE.
 	 * 
 	 * @param cveID
 	 */
@@ -289,17 +333,21 @@ public class SbomBuilder {
 		source.setUrl(String.format("https://nvd.nist.gov/vuln/detail/%s", cveID));
 		return source;
 	}
-	
+
+	/**
+	 * Sets Method used to determine the CVSS Vector.
+	 * 
+	 * @param cvssVector - vector from the vuln record.
+	 * @return method - Method object with the rating.
+	 */
 	private static Method setMethodType(String cvssVector) {
-		Method method = null;
-		
+		Method method = Vulnerability.Rating.Method.CVSSV2; // Default to CVSS2.
+
 		// Extract method from cvss vector.
 		if (cvssVector != null) {
-			String methodVector = cvssVector.substring(0, cvssVector.indexOf("#"));
-			
-			if (methodVector.equalsIgnoreCase("CVSS2")) {
-				method = Vulnerability.Rating.Method.CVSSV2;
-			}
+			int index = cvssVector.indexOf("#");
+			String methodVector = index != -1 ? cvssVector.substring(0, index) : cvssVector;
+
 			if (methodVector.equalsIgnoreCase("CVSS3")) {
 				method = Vulnerability.Rating.Method.CVSSV3;
 			}
@@ -307,151 +355,39 @@ public class SbomBuilder {
 
 		return method;
 	}
-	
-	/**
-	 * Connect to the CVE url and extracts description p<>
-	 * 
-	 * @param CVE-ID url.
-	 * 
-	 */
-	private static String getDescription(String url) {
-		String descriptionText = null;
-		try {
-			Document doc = Jsoup.connect(url).get();
-			Element descriptionElement = doc.select("p[data-testid=vuln-description]").first();
 
-			if (descriptionElement != null) {
-				descriptionText = descriptionElement.text();
+	/**
+	 * Sets the afffected hosts for each vulnerability found.
+	 * 
+	 * @param cveID - cve id found in the report item.
+	 * @return affectedHosts list - List that contains the references to all hosts.
+	 */
+	private static List<Affect> setAffectedHost(String cveID) {
+		List<Affect> affectedHosts = new ArrayList<>();
+		// match the key based on cve id passed in.
+		if (cveReportHostMap.containsKey(cveID)) {
+			Set<String> hosts = cveReportHostMap.get(cveID);
+			// loop through the hosts and set to refs.
+			for (String host : hosts) {
+				Affect affect = new Affect();
+				affect.setRef(host);
+				affectedHosts.add(affect);
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
 		}
-		return descriptionText;
+		return affectedHosts;
 	}
+	
 	
 	/**
-	 * Uses PackageURL Builder to create a purl from a given CPE ID. 
 	 * 
-	 * @param cpeID
+	 * @param cweID
+	 * @return
 	 */
-	private static PackageURL createPurl(String cpeID) {
-		PackageURL purl = null;
-		try {
-			// Spilt CPE ID into parts and set [] values.
-			String[] parts = cpeID.split(":");
-			String cpePart = parts[2];
-			String cpeVendor = parts[3];
-			String cpeProduct = parts[4];
+	private static List<Integer> convertToList(Integer cweID) {
+		List<Integer> cweList = new ArrayList<>();
+		cweList.add(cweID);
+		return cweList;
 
-			// Set valuves for Package Builder.
-			PackageURLBuilder purlBuilder = PackageURLBuilder.aPackageURL().withType(cpePart).withNamespace(cpeVendor).withName(cpeProduct);
-
-			// Check if the version exists in the cpeID.
-			if (parts.length > 5) {
-				String cpeVersion = parts[5];
-				purlBuilder.withVersion(cpeVersion);
-			} 
-				
-			// Build PURL.
-			purl = purlBuilder.build();
-			
-
-		} catch (MalformedPackageURLException e) {
-			e.printStackTrace();
-		}
-
-		return purl;
 	}
 	
-	/**
-	 * Takes in references from componet record and sets type & url.
-	 * 
-	 * @param References
-	 */
-	private static List<ExternalReference> createExternalRefs(String references) {
-		List<ExternalReference> externalRefList = new ArrayList<>();
-
-		// Split the references string by newline characters
-		String[] urls = references.split("\\r?\\n");
-
-		for (String url : urls) {
-			ExternalReference externalRef = new ExternalReference();
-			externalRef.setType(ExternalReference.Type.WEBSITE);
-			externalRef.setUrl(url.trim());
-
-			externalRefList.add(externalRef);
-		}
-		return externalRefList;
-	}
-	
-	/**
-	 * Uses maven object model to extract dependencies from the POM. 
-	 * 
-	 * @return Component List with dependencies. 
-	 */
-	
-	private static List<Component> toolsUsed() {
-		List<Component> componentsList = new ArrayList<>();
-		try {
-
-			MavenXpp3Reader reader = new MavenXpp3Reader();
-			Model model = reader.read(new FileReader("pom.xml"));
-
-			// Extract dependencies from POM.
-			List<Dependency> dependencies = model.getDependencies();
-
-			for (Dependency dependency : dependencies) {
-				
-				Component component = new Component();		
-				component.setType(Component.Type.LIBRARY);
-				component.setName(dependency.getArtifactId());
-				component.setGroup(dependency.getGroupId());
-				component.setVersion(dependency.getVersion());
-				component.setScope(Component.Scope.REQUIRED);
-				
-				componentsList.add(component);
-				
-			}
-
-		} catch (IOException | XmlPullParserException e) {
-			e.printStackTrace();
-		}
-		return componentsList;
-	}
-	
-	/**
-	 * Extracts project-level information from the pom.xml and set them to Component.
-	 * 
-	 * @return Project Component.
-	 */
-	
-	private static Component getProjectComponent() {
-		List<ExternalReference> projectRefsList = new ArrayList<>();
-		Component projectComponent = new Component();
-		try {
-			MavenXpp3Reader reader = new MavenXpp3Reader();
-			Model model = reader.read(new FileReader("pom.xml"));
-
-			String groupId = model.getGroupId();
-			String name = model.getArtifactId();
-			String version = model.getVersion();
-			String url = model.getUrl();
-
-			ExternalReference projectRefs = new ExternalReference();
-			projectRefs.setType(ExternalReference.Type.WEBSITE);
-			projectRefs.setUrl(url);
-			projectRefsList.add(projectRefs);
-
-			projectComponent.setGroup(groupId);
-			projectComponent.setName(name);
-			projectComponent.setVersion(version);
-			projectComponent.setExternalReferences(projectRefsList);
-
-		} catch (IOException | XmlPullParserException e) {
-			e.printStackTrace();
-		}
-		return projectComponent;
-	}
-	
-
 }
