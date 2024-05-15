@@ -44,7 +44,7 @@ public class SbomBuilder {
 
 	public static void generateSBOM() {
 
-		List<ComponentsRecord> componentRecords = NessusParser.getReportHostsList();
+		List<ComponentsRecord> componentRecords = NessusParser.getComponentsList();
 		List<VulnerabilitiesRecord> vulnRecords = NessusParser.getVulnerabiltiesRecord();
 		List<Dependency> dependencyRecords = NessusParser.getDependenciesList();
 
@@ -61,7 +61,7 @@ public class SbomBuilder {
 			String componentName = componentRecord.getReportHostName();	
 			component.setBomRef(String.format("%s.%s",componentName,RandomStringUtils.randomNumeric(8)));
 			component.setName(componentRecord.getReportHostName());
-			component.setType(Component.Type.DEVICE);
+			component.setType(Component.Type.APPLICATION);
 			component.setCpe(componentRecord.getComponentCpe());
 			component.setHashes(hashes);
 

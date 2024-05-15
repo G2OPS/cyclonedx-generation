@@ -34,7 +34,7 @@ public class NessusParser {
 	private static final String WINDOWS_PLUGIN_ID = "20811";
 	private static final String LINUX_PLUGIN_ID = "22869";
 
-	private static List<ComponentsRecord> reportHostsList = new ArrayList<>();
+	private static List<ComponentsRecord> componentsList = new ArrayList<>();
 	private static List<VulnerabilitiesRecord> vulnerabilitiesRecord = new ArrayList<>();
 	private static Map<String, Set<String>> cveReportHostMap = new HashMap<>();
 	private static Map<String, List<Dependency>> swInventoryHostMap = new HashMap<>();
@@ -66,9 +66,10 @@ public class NessusParser {
 				if (reportHostNode.getNodeType() == Node.ELEMENT_NODE) {
 					Element reportHostElement = (Element) reportHostNode;
 					String reportHostName = reportHostElement.getAttribute("name");
+					
 					// Get Host Properties for each ReportHost.
 					NodeList reportHostProperties = reportHostElement.getElementsByTagName("HostProperties");
-					extractComponents(reportHostProperties);
+					extractCPEs(reportHostProperties);
 
 					// Get all ReportItems for each ReportHost.
 					NodeList reportItemList = reportHostElement.getElementsByTagName("ReportItem");
@@ -87,73 +88,31 @@ public class NessusParser {
 	}
 
 	/**
-	 * Extracts compoennt data from Report Hosts.
+	 * Extracts CPE tags from Report Host Properties.
 	 * 
-	 * @param reportHostList
+	 * @param reportHostProperties - NodeList of report host properties within a report host. 
 	 */
-	private static void extractComponents(NodeList reportHostProperties) {
+	private static void extractCPEs(NodeList reportHostProperties) {
 
-		// Get all Host Properties.
-		Element hostPropertiesElement = (Element) reportHostProperties.item(0);
-
-		// Check if the system-type tag exists.
+		Element hostPropertiesElement = (Element) reportHostProperties;
 		NodeList hostPropertiesTags = hostPropertiesElement.getElementsByTagName("tag");
 
-		ComponentsRecord reportHostComponent = new ComponentsRecord();
-		Map<Integer, String> cpeValues = new HashMap<>();
+		ComponentsRecord component = new ComponentsRecord();
 
-		// Loop through all tags under HostProperties.
+		// Loop through all tags & find CPE tags. 
 		for (int j = 0; j < hostPropertiesTags.getLength(); j++) {
 			Element tagElement = (Element) hostPropertiesTags.item(j);
 			String tagName = tagElement.getAttribute("name");
 			String tagValue = tagElement.getTextContent();
 
 			// Set necesssary report hosts tags.
-			if (tagName.equalsIgnoreCase("host-ip")) {
-				reportHostComponent.setReportHostName(tagValue);
+			if (tagName.contains("cpe")) {
+				//TODO set componentName & type. 
+				component.setComponentName(tagValue.split(":")[3]); // This will throw a null pointer in some instances. 
+				component.setComponentCpe(tagValue);
 			}
-			if (tagName.equalsIgnoreCase("system-type")) {
-				reportHostComponent.setSystemType(tagValue);
-			}
-			if (tagName.equalsIgnoreCase("operating-system")) {
-				reportHostComponent.setOperatingSystem(tagValue);
-			}
-			if (tagName.equalsIgnoreCase("mac-address")) {
-				String macAddresses = tagValue.trim().replace("\n", ", ");
-				reportHostComponent.setMacAddress(macAddresses);
-			}
-			if (tagName.startsWith("cpe")) {
-				int cpeNumber = 0;
-				// If there are more than one cpe attribute.
-				if (tagName.contains("-")) {
-					String[] tagNameParts = tagName.split("-");
-					cpeNumber = Integer.parseInt(tagNameParts[1]);
-					cpeValues.put(cpeNumber, tagValue);
-				} else {
-					reportHostComponent.setComponentCpe(conditionCpe(tagValue));
-				}
-			}
-			// If only one cpe exists in cpeValues.
-			if (cpeValues.size() == 1) {
-				reportHostComponent.setComponentCpe(conditionCpe(cpeValues.values().iterator().next()));
-				// More than one cpe exists in cpeValues.
-			} else {
-				int highestCpeNumber = 0;
-				String highestCpeValue = null;
-				for (Map.Entry<Integer, String> entry : cpeValues.entrySet()) {
-					int cpeNumber = entry.getKey();
-					if (cpeNumber > highestCpeNumber) {
-						highestCpeNumber = cpeNumber;
-						highestCpeValue = entry.getValue();
-					}
-				}
-				if (highestCpeValue != null) {
-					reportHostComponent.setComponentCpe(conditionCpe(highestCpeValue));
-				}
-			}
-
 		}
-		reportHostsList.add(reportHostComponent);
+		componentsList.add(component);
 
 	}
 
@@ -443,8 +402,8 @@ public class NessusParser {
 		return vulnerabilitiesRecord;
 	}
 
-	public static List<ComponentsRecord> getReportHostsList() {
-		return reportHostsList;
+	public static List<ComponentsRecord> getComponentsList() {
+		return componentsList;
 	}
 
 	public static Map<String, Set<String>> getCveReportHostMap() {
