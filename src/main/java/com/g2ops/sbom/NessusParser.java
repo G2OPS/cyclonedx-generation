@@ -35,6 +35,7 @@ public class NessusParser {
 	private static final String LINUX_PLUGIN_ID = "22869";
 
 	private static List<ComponentsRecord> componentsList = new ArrayList<>();
+	private static Set<String> uniqueCPEs = new HashSet<>();
 	private static List<VulnerabilitiesRecord> vulnerabilitiesRecord = new ArrayList<>();
 	private static Map<String, Set<String>> cveReportHostMap = new HashMap<>();
 	private static Map<String, List<Dependency>> swInventoryHostMap = new HashMap<>();
@@ -44,7 +45,7 @@ public class NessusParser {
 	private static String cveToBeAdded = "";
 
 	/**
-	 * Reads nessus files and iterates through relevent data fields.
+	 * Reads NESSUS files and iterates through relevant data fields.
 	 * 
 	 * @param file input stream.
 	 */
@@ -65,20 +66,17 @@ public class NessusParser {
 
 				if (reportHostNode.getNodeType() == Node.ELEMENT_NODE) {
 					Element reportHostElement = (Element) reportHostNode;
-					String reportHostName = reportHostElement.getAttribute("name");
-					
-					// Get Host Properties for each ReportHost.
-					NodeList reportHostProperties = reportHostElement.getElementsByTagName("HostProperties");
-					extractCPEs(reportHostProperties);
+					NodeList tagList= reportHostElement.getElementsByTagName("tag");
+					// extract relevant data. 
+					extractCPEs(tagList);
 
-					// Get all ReportItems for each ReportHost.
+					// TODO
 					NodeList reportItemList = reportHostElement.getElementsByTagName("ReportItem");
-					extractVulnData(reportItemList, reportHostName);
-					extractSoftwareData(reportItemList, reportHostName);
+					extractVulnData(reportItemList, null);
+					extractSoftwareData(reportItemList, null);
 				}
 			}
-
-			// Build SBOMs.
+			componentRecordInit(uniqueCPEs);
 			SbomBuilder.generateSBOM();
 
 		} catch (ParserConfigurationException | SAXException | IOException e) {
@@ -88,45 +86,120 @@ public class NessusParser {
 	}
 
 	/**
-	 * Extracts CPE tags from Report Host Properties.
+	 * Extracts CPE tag values.
 	 * 
-	 * @param reportHostProperties - NodeList of report host properties within a report host. 
+	 * @param tagList - NodeList of tags founds within a report host. 
 	 */
-	private static void extractCPEs(NodeList reportHostProperties) {
+	private static void extractCPEs(NodeList tagList) {
 
-		Element hostPropertiesElement = (Element) reportHostProperties;
-		NodeList hostPropertiesTags = hostPropertiesElement.getElementsByTagName("tag");
-
-		ComponentsRecord component = new ComponentsRecord();
-
-		// Loop through all tags & find CPE tags. 
-		for (int j = 0; j < hostPropertiesTags.getLength(); j++) {
-			Element tagElement = (Element) hostPropertiesTags.item(j);
-			String tagName = tagElement.getAttribute("name");
-			String tagValue = tagElement.getTextContent();
-
-			// Set necesssary report hosts tags.
-			if (tagName.contains("cpe")) {
-				//TODO set componentName & type. 
-				component.setComponentName(tagValue.split(":")[3]); // This will throw a null pointer in some instances. 
-				component.setComponentCpe(tagValue);
+		for (int i = 0; i < tagList.getLength(); i++) {
+			Node tagNode = tagList.item(i);
+			
+			if (tagNode.getNodeType() == Node.ELEMENT_NODE) {
+				Element tagElement = (Element) tagNode;
+				String tagName = tagElement.getAttribute("name");
+				if (tagName != null && tagName.startsWith("cpe")) {
+					String cpeName = tagElement.getTextContent().trim();
+					uniqueCPEs.add(cpeName);		
+					
+				}
 			}
 		}
-		componentsList.add(component);
-
+	}
+	
+	/**
+	 * Creates a component record for each CPE found. 
+	 * 
+	 * @param cpeName - CPE name string. 
+	 */
+	private static void componentRecordInit(Set<String> uniqueCPEs) {
+		
+		for (String cpe : uniqueCPEs) {
+			
+			ComponentsRecord component = new ComponentsRecord();
+			
+			String[] cpeParts = cpe.split(":");
+			component.setComponentCpe(cpe);
+			component.setComponentName(getCpeName(cpeParts));
+			component.setComponentType(getCpeType(cpeParts));
+			component.setVendorName(getCpeVendor(cpeParts));
+			component.setComponentVersion(getCpeVersion(cpeParts));
+			
+			componentsList.add(component);
+		}
+		
+	}
+	
+	private static String getCpeVersion(String[] cpeParts) {
+		String componentVersion;
+		
+		if(cpeParts.length > 4) {
+			componentVersion = cpeParts[4];
+		} else {
+			componentVersion = "";
+		}
+		return componentVersion;
 	}
 
 	/**
-	 * Takes CPE Id and conforms it to 2.3 specification.
+	 * sets vendor based on CPE vendor name.
 	 * 
-	 * @param cpeTagValue.
-	 * @return conditionedCpe.
+	 * @param cpeParts - string [] spilt by CPE components.
+	 * @return vendorName - CPE vendor to be set on component record. 
 	 */
-	private static String conditionCpe(String cpeTagValue) {
-		String conditionedCpe = cpeTagValue.replace("/", "2.3:");
-		return conditionedCpe;
+	private static String getCpeVendor(String[] cpeParts) {
+		String cpeVendor = cpeParts[2];
+		
+		String vendorName;
+		if (cpeVendor != null) {
+			vendorName = cpeVendor;
+		} else {
+			vendorName = "";
+		}
+		return vendorName;
 	}
 
+	/**
+	 * sets component type based on CPE part name. 
+	 * 
+	 * @param cpeParts - string [] spilt by CPE components.
+	 * @return componentType - CPE type to be set on component record. 
+	 */
+	private static String getCpeType(String[] cpeParts) {
+		String cpeType = cpeParts[1];
+		
+		String componentType = "";
+		
+		if (cpeType.equals("/o")) {
+			componentType = "operating_system";
+		} else if (cpeType.equals("/a")) {
+			componentType = "application";
+		}
+		return componentType;
+	}
+
+	/**
+	 * sets component name based on components available in a CPE. 
+	 * 
+	 * @param - string [] spilt by CPE components. 
+	 * @return - cpeName - cpeName to be set on component record. 
+	 */
+	private static String getCpeName(String [] cpeParts) {
+		String cpeName;
+		if (cpeParts.length > 4 ) {
+			// use product name & version. 
+			cpeName = cpeParts[2] + "_" + cpeParts[3];
+		} else if (cpeParts.length > 3) {
+			// use only product name
+			cpeName = cpeParts[3];
+		} else {
+			// use vendor
+			cpeName = cpeParts[2];
+		}
+		return cpeName;
+	}
+	
+	
 	/**
 	 * Extracts vulnerability data from reportItem & saves it to vuln record.
 	 * 

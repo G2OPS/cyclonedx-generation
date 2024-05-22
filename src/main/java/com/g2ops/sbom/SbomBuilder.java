@@ -26,6 +26,7 @@ import org.cyclonedx.model.LifecycleChoice;
 import org.cyclonedx.model.Lifecycles;
 import org.cyclonedx.model.Metadata;
 import org.cyclonedx.model.OrganizationalContact;
+import org.cyclonedx.model.OrganizationalEntity;
 import org.cyclonedx.model.Property;
 import org.cyclonedx.model.vulnerability.Vulnerability;
 import org.cyclonedx.model.vulnerability.Vulnerability.Affect;
@@ -58,36 +59,13 @@ public class SbomBuilder {
 
 			Component component = new Component();
 			
-			String componentName = componentRecord.getReportHostName();	
-			component.setBomRef(String.format("%s.%s",componentName,RandomStringUtils.randomNumeric(8)));
-			component.setName(componentRecord.getReportHostName());
-			component.setType(Component.Type.APPLICATION);
+			component.setName(componentRecord.getComponentName());
 			component.setCpe(componentRecord.getComponentCpe());
+			component.setType("operating-system".equals(componentRecord.getComponentType()) ? Component.Type.OPERATING_SYSTEM : Component.Type.APPLICATION);
+			component.setSupplier(getSupplierName(componentRecord.getVendorName()));
+			component.setVersion(componentRecord.getComponentVersion().isEmpty() ? null : componentRecord.getComponentVersion());
+			component.setBomRef(String.format("%s/%s@%s", component.getType(),component.getName(),component.getVersion() != null ? component.getVersion() : ""));
 			component.setHashes(hashes);
-
-			// Set Component Properties.
-			List<Property> componentPropertiesList = new ArrayList<>();
-
-			if (componentRecord.getSytemType() != null) {
-				Property hwProperty = new Property();
-				hwProperty.setName("cdx:device:systemType");
-				hwProperty.setValue(componentRecord.getSytemType());
-				componentPropertiesList.add(hwProperty);
-			}
-			if (componentRecord.getOperatingSystem() != null) {
-				Property hwProperty = new Property();
-				hwProperty.setName("cdx:device:operatingSystem");
-				hwProperty.setValue(componentRecord.getOperatingSystem());
-				componentPropertiesList.add(hwProperty);
-			}
-			if (componentRecord.getMacAddress() != null) {
-				Property hwProperty = new Property();
-				hwProperty.setName("cdx:device:macAddress");
-				hwProperty.setValue(componentRecord.getMacAddress());
-				componentPropertiesList.add(hwProperty);
-			}
-			
-			component.setProperties(componentPropertiesList);
 			
 			bom.addComponent(component);
 		}
@@ -251,6 +229,18 @@ public class SbomBuilder {
 		metadata.setProperties(propertyList);
 		
 		return metadata;
+	}
+	
+	/**
+	 * creates OrganizationalEntity instance and sets supplier name. 
+	 * 
+	 * @param vendorName - vendor name from CPE vendor component. 
+	 * @return orgEntity - OrganizationalEntity obj with supplier name. 
+	 */
+	private static OrganizationalEntity getSupplierName(String vendorName) {
+		OrganizationalEntity orgEntity = new OrganizationalEntity();
+		orgEntity.setName(vendorName);
+		return orgEntity;
 	}
 
 	/**
