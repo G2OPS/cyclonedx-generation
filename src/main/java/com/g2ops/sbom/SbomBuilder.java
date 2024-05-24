@@ -70,6 +70,7 @@ public class SbomBuilder {
 			bom.addComponent(component);
 		}
 
+
 		// Iterate through all vulnerabilities in the list & add them to BOM.
 		List<Vulnerability> vulnerabilityList = new ArrayList<>();
 
@@ -147,6 +148,7 @@ public class SbomBuilder {
 		}
 
 		// Set Dependencies for the SBOM. 
+		bom.setProperties(null);
 		bom.setDependencies(dependencyRecords);
 		
 		// Generate hashes.

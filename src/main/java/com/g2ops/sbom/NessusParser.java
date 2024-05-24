@@ -36,6 +36,7 @@ public class NessusParser {
 
 	private static List<ComponentsRecord> componentsList = new ArrayList<>();
 	private static Set<String> uniqueCPEs = new HashSet<>();
+	private static Set<String> uniqueSoftwareItems = new HashSet<>();
 	private static List<VulnerabilitiesRecord> vulnerabilitiesRecord = new ArrayList<>();
 	private static Map<String, Set<String>> cveReportHostMap = new HashMap<>();
 	private static Map<String, List<Dependency>> swInventoryHostMap = new HashMap<>();
@@ -50,7 +51,9 @@ public class NessusParser {
 	 * @param file input stream.
 	 */
 	public static void parseXML(InputStream inputStream, File nessusFile) {
+
 		try {
+
 			DocumentBuilderFactory dbfactory = DocumentBuilderFactory.newInstance();
 			DocumentBuilder dbuilder = dbfactory.newDocumentBuilder();
 			Document document = dbuilder.parse(inputStream);
@@ -66,19 +69,32 @@ public class NessusParser {
 
 				if (reportHostNode.getNodeType() == Node.ELEMENT_NODE) {
 					Element reportHostElement = (Element) reportHostNode;
-					NodeList tagList= reportHostElement.getElementsByTagName("tag");
-					// extract relevant data. 
-					extractCPEs(tagList);
-
-					// TODO
+				
+					NodeList tagList = reportHostElement.getElementsByTagName("tag");
+					extractCPEs(tagList); // get CPEs from reportHost tags. 
+					
 					NodeList reportItemList = reportHostElement.getElementsByTagName("ReportItem");
-					extractVulnData(reportItemList, null);
-					extractSoftwareData(reportItemList, null);
+					// loop over reportHost items and look for software plugins. 
+					for (int j = 0; j < reportItemList.getLength(); j++) {
+						Node reportItemNode = reportItemList.item(j);
+
+						if (reportItemNode.getNodeType() == Node.ELEMENT_NODE) {
+							Element reportItemElement = (Element) reportItemNode;
+							
+							String pluginID = reportItemElement.getAttribute("pluginID");
+							
+							if (pluginID.equals(WINDOWS_PLUGIN_ID) || pluginID.equals(LINUX_PLUGIN_ID)) {
+								Node pluginOutput = reportItemElement.getElementsByTagName("plugin_output").item(0);
+								sanitizeOutput(pluginOutput);
+							} else {
+								LOGGER.info("Software plugins were not found in the scan.");
+							}
+						}
+					}
+					componentRecordInit(uniqueCPEs);
+					SbomBuilder.generateSBOM();
 				}
 			}
-			componentRecordInit(uniqueCPEs);
-			SbomBuilder.generateSBOM();
-
 		} catch (ParserConfigurationException | SAXException | IOException e) {
 			LOGGER.info("Exception thrown while parsing : " + e.getMessage());
 		}
@@ -308,6 +324,7 @@ public class NessusParser {
 	 * @param descriptionElement
 	 * @param publishedDateElement
 	 */
+	
 	private static void createVulnRecord(Node cvssBaseScoreElement, Node cvssBaseVectorElement, Node cvssTempScoreElement, Node cvssTempVectorElement,
 			Node recommedationElement, Node descriptionElement, Node publishedDateElement, Node riskFactorElement, Node exploitAvailableElement,
 			 String cveToBeAdded, String reportItemPort, Integer cweIDvalue, String reportItemPluginName) {
@@ -367,82 +384,42 @@ public class NessusParser {
 		vulnerabilitiesRecord.add(vulnerabilityRecord);
 	}
 
-	/**
-	 * Iterates through the Report Items and looks for plugins that output Software
-	 * information.
-	 * 
-	 * @param reportItemList - List of Report Items for each Report Host.
-	 * @param reportHostName - Report Host under which Report Items fall.
-	 */
-
-	private static void extractSoftwareData(NodeList reportItemList, String reportHostName) {
-
-		for (int i = 0; i < reportItemList.getLength(); i++) {
-			Node reportItemNode = reportItemList.item(i);
-
-			if (reportItemNode.getNodeType() == Node.ELEMENT_NODE) {
-				Element reportItemElement = (Element) reportItemNode;
-				String pluginAttr = reportItemElement.getAttribute("pluginID");
-
-				// Check for desired SW plugins & retrieve the plugin output.
-				if (pluginAttr.equalsIgnoreCase(WINDOWS_PLUGIN_ID) || pluginAttr.equalsIgnoreCase(LINUX_PLUGIN_ID)) {
-					Node pluginOutputNode = reportItemElement.getElementsByTagName("plugin_output").item(0);;;;;;;
-					// Strip the plugin output off unncessary data.
-					createSoftwareDependencies(pluginOutputNode, reportHostName); 
-				}
-			}
-		}
-	}
-
 
 	/**
-	 * Strips off unnceccary information and adds each software as a dependency to the Map. 
+	 * Conditions the plugin output and adds each software as a dependency to the Map. 
 	 * 
 	 * @param pluginOutput   - plugin output node content. 
 	 * @param reportHostName - report host name. 
 	 */
-	private static void createSoftwareDependencies(Node pluginOutput, String reportHostName) {
-		if (pluginOutput != null) {
-			String outputText = pluginOutput.getTextContent().trim();
+	private static Set<String> sanitizeOutput(Node pluginOutput) {
 
-			// Remove unnecessary heading on top.
-			outputText = outputText.replace("The following software are installed on the remote host :", "");
-			// Remove lines containing "update"
-	        outputText = outputText.replaceAll("(?i).*\\bupdate\\b.*\n", "");
-	        // Remove content starting with "The following updates were installed"
-	        outputText = outputText.replaceFirst("(?s)The following updates were installed.*?</plugin_output>", "");
-	        
-			String[] lines = outputText.split("\n");
-			// Set to save unique SW enteries.
-			List<Dependency> softwareList = new ArrayList<>();
+		String outputText = pluginOutput.getTextContent().trim();
 
-			for (String line : lines) {
-				line = line.trim();
-				if (!line.isEmpty()) {
-					// Remove SW installiation dates from the output, keep SW name & version. 
-					String[] parts = line.split("\\[version");
-					if (parts.length >= 2) {
-						String software = parts[0].trim();
-						// Check if the line contains "KB". if so, skip this line. 
-						if (!software.contains("KB")) {
-							String version = parts[1].split("\\]")[0].trim();
-							// If the software name already contains the version info, then just add name. 
-							Dependency swDependency;
-							if (software.contains(version)) {
-								swDependency = new Dependency(software);
-								// Else, add software name + version. 
-							} else {
-								swDependency = new Dependency(software + " " + version);
-							}
-							softwareList.add(swDependency);								
-						}
-					}
-				}
-			}	
-			// Add report host and assoicated sw list to the map & create dependencies. 
-			swInventoryHostMap.put(reportHostName, softwareList);
-			addSoftwareDependencies(swInventoryHostMap);
+		// Remove unnecessary heading on top.
+		outputText = outputText.replace("The following software are installed on the remote host :", "");
+		// Remove lines containing "update"
+		outputText = outputText.replaceAll("(?i).*\\bupdate\\b.*\n", "");
+		// Remove content starting with "The following updates were installed"
+		outputText = outputText.replaceFirst("(?s)The following updates were installed.*?</plugin_output>", "");
+
+		String[] sofwareItems = outputText.split("\n"); // split by each line.
+
+		Set<String> uniqueSoftwareList = new HashSet<>(); // set to save unique software entries.
+
+		for (String softwareItem : sofwareItems) {
+			// Remove the "[installed on ...]" part if present, extract software name &
+			// version.
+			String softwareItemLine = softwareItem.replaceAll("\\s*\\[installed on .*?\\]", "").trim();
+			if (softwareItemLine.contains("[version")) {
+				String cleanedSoftware = softwareItemLine.substring(0, softwareItemLine.indexOf("[version")).trim();
+				uniqueSoftwareList.add(cleanedSoftware);
+			} else {
+				// if "[version" doesn't exist, then line item is a security update.
+				uniqueSoftwareList.add(softwareItemLine.trim());
+			}
 		}
+
+		return uniqueSoftwareList;
 	}
 
 	/**

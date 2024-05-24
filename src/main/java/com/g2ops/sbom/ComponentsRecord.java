@@ -4,7 +4,6 @@ public class ComponentsRecord {
 	
 	private String componentName;
 	private String componentCpe;
-	private String operatingSystem;
 	private String vendorName;
 	private String componentType;
 	private String componentVersion;
@@ -33,13 +32,6 @@ public class ComponentsRecord {
 	
 	public void setComponentName(String componentName) {
 		 this.componentName = componentName;
-	}
-	public String getOperatingSystem() {
-		return operatingSystem;
-	}
-
-	public void setOperatingSystem(String operatingSystemName) {
-		this.operatingSystem = operatingSystemName;
 	}
 
 	public String getComponentCpe() {
